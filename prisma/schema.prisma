@@ -1,0 +1,139 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+generator client {
+  provider = "prisma-client"
+  output   = "../src/generated/prisma"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+enum NodeType {
+  HENDELSE
+  SAMFUNNSFUNKSJON
+}
+
+// Likelihood taxonomy (hendelse-only) - MappingMethod1 in requirments.md.
+enum LikelihoodCategory {
+  INGEN
+  SVAERT_LAV
+  LAV
+  MIDDELS
+  HOY
+  SVAERT_HOY
+}
+
+// Consequence taxonomy (samfunnsfunksjon-only) - MappingMethod2 in
+// requirments.md. Also the taxonomy used by the indirect-impact tables
+// (IndirectImpactPointMapping) - see src/lib/calc/mappings.ts.
+enum ConsequenceCategory {
+  INGEN
+  SVAERT_SMAA
+  SMAA
+  MIDDELS
+  STORE
+  SVAERT_STORE
+}
+
+// Node subtype - a categorical classification applied to every node
+// (hendelse and samfunnsfunksjon alike), independent of severity. Drives the
+// node's fill color in the graph. See src/lib/calc/mappings.ts.
+enum NodeSubtype {
+  HAZARDS
+  STABILITET
+  BEFOLKNING
+  FUNKSJON
+}
+
+model Team {
+  id         String       @id @default(uuid())
+  name       String
+  createdAt  DateTime     @default(now())
+  memberships Membership[]
+  scenarios  Scenario[]
+}
+
+model User {
+  id           String       @id @default(uuid())
+  email        String       @unique
+  passwordHash String
+  createdAt    DateTime     @default(now())
+  memberships  Membership[]
+}
+
+model Membership {
+  id     String @id @default(uuid())
+  userId String
+  teamId String
+  role   String @default("MEMBER") // OWNER | MEMBER
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  team Team @relation(fields: [teamId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, teamId])
+}
+
+// A predefined scenario (the root "hendelse" + its directly-hit "samfunnsfunksjon"
+// nodes). Authored only via prisma/seed.ts for v1 - no in-app authoring UI.
+model Scenario {
+  id        String   @id @default(uuid())
+  teamId    String
+  name      String
+  createdAt DateTime @default(now())
+
+  team  Team   @relation(fields: [teamId], references: [id], onDelete: Cascade)
+  nodes Node[]
+  edges Edge[]
+}
+
+// Persisted only for the root hendelse and the samfunnsfunksjon functions
+// DIRECTLY hit by that event. Purely-indirect functions get no row here -
+// they're synthesized by the recompute endpoint from the catalog.
+model Node {
+  id         String   @id @default(uuid())
+  scenarioId String
+  type       NodeType
+  label      String
+  description String  @db.Text
+
+  // Stable catalog key (e.g. "KRAFTFORSYNING"), only for SAMFUNNSFUNKSJON -
+  // selects which built-in functionality table + indirect-impact row applies.
+  functionKey String?
+
+  // Applies to every node (hendelse and samfunnsfunksjon alike).
+  subtype NodeSubtype
+
+  // hendelse-only
+  likelihoodCategory LikelihoodCategory?
+  likelihoodValue    Int?
+
+  // samfunnsfunksjon-only - the scenario author's assigned BASE severity
+  // (never mutated by recompute; recompute is a stateless overlay on top).
+  consequenceCategory ConsequenceCategory?
+  consequenceValue    Int?
+
+  scenario    Scenario @relation(fields: [scenarioId], references: [id], onDelete: Cascade)
+  parentEdges Edge[]   @relation("ChildEdges")
+  childEdges  Edge[]   @relation("ParentEdges")
+
+  @@index([scenarioId])
+}
+
+// Direct edges only (hendelse -> directly-hit Node). Indirect connections are
+// never persisted - they're computed and returned by /recompute each time.
+model Edge {
+  id              String @id @default(uuid())
+  scenarioId      String
+  parentId        String
+  childId         String
+  connectionLevel Int // 1-5, drives line width
+
+  scenario Scenario @relation(fields: [scenarioId], references: [id], onDelete: Cascade)
+  parent   Node     @relation("ParentEdges", fields: [parentId], references: [id], onDelete: Cascade)
+  child    Node     @relation("ChildEdges", fields: [childId], references: [id], onDelete: Cascade)
+
+  @@unique([parentId, childId])
+  @@index([scenarioId])
+}

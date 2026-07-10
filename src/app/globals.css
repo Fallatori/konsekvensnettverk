@@ -1,17 +1,51 @@
 :root {
-  --background: #ffffff;
-  --foreground: #171717;
-}
+  /* Oslo kommune's official color palette - https://designmanual.oslo.kommune.no/farger
+     Always-dark theme (confirmed): the app used to also offer a light mode,
+     switched by prefers-color-scheme, but this dark "dependency graph"
+     aesthetic is now the only theme. */
+  --oslo-mork-bla: #2a2859;
+  --oslo-bla: #6fe9ff;
+  --oslo-lys-bla: #b3f5ff;
+  --oslo-rod: #ff8274;
+  --oslo-mork-gronn: #034b45;
+  --oslo-gronn: #43f8b6;
+  --oslo-lys-gronn: #c7f6c9;
+  --oslo-sort: #2c2c2c;
+  --oslo-gul: #f9c66b;
+  --oslo-mork-beige: #d0bfae;
+  --oslo-lys-beige: #f8f0dd;
 
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
-  }
+  --background: #050b18;
+  --foreground: #e7ecf7;
+  --accent: var(--oslo-bla);
+  --accent-soft: rgba(111, 233, 255, 0.16);
+  --accent-glow: rgba(111, 233, 255, 0.45);
+
+  --surface: #0a1526;
+  --surface-container-lowest: #050b18;
+  --surface-container-low: #0c1830;
+  --surface-container: #101d38;
+  --surface-container-high: #16233f;
+  --surface-container-highest: #1c2c4a;
+  --surface-bright: #24314e;
+
+  --topbar-bg: rgba(10, 21, 38, 0.85);
+  --topbar-border: rgba(111, 233, 255, 0.14);
+  --control-track: var(--surface-container-high);
+  --control-border: rgba(148, 163, 194, 0.28);
+  --control-muted: #8f9ab3;
+  --panel-border: rgba(111, 233, 255, 0.12);
+  --glass-bg: rgba(12, 24, 48, 0.72);
+  /* Graph edge "wire" color - severity now lives in the edge's midpoint
+     marker (shape + color), not the line itself. Kept as a literal in
+     FloatingEdge.tsx too since SVG presentation attributes don't reliably
+     resolve CSS custom properties - keep both in sync if this changes. */
+  --edge-wire: rgba(231, 236, 247, 0.28);
 }
 
 html {
   height: 100%;
+  color-scheme: dark;
 }
 
 html,
@@ -26,6 +60,9 @@ body {
   flex-direction: column;
   color: var(--foreground);
   background: var(--background);
+  /* Oslo Sans is Oslo kommune's own typeface and is proprietary to the
+     municipality and its partners - their design manual states Arial is the
+     official substitute where Oslo Sans is unavailable. */
   font-family: Arial, Helvetica, sans-serif;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
@@ -42,8 +79,440 @@ a {
   text-decoration: none;
 }
 
-@media (prefers-color-scheme: dark) {
-  html {
-    color-scheme: dark;
-  }
+/* Material Symbols Outlined - icon font, loaded in app/layout.tsx */
+.material-symbols-outlined {
+  font-family: "Material Symbols Outlined";
+  font-weight: normal;
+  font-style: normal;
+  line-height: 1;
+  letter-spacing: normal;
+  text-transform: none;
+  white-space: nowrap;
+  word-wrap: normal;
+  direction: ltr;
+  font-variation-settings:
+    "FILL" 0,
+    "wght" 400,
+    "GRAD" 0,
+    "opsz" 24;
+  vertical-align: middle;
+}
+
+/* Thin custom scrollbar to match the glass panels */
+::-webkit-scrollbar {
+  width: 6px;
+}
+
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+::-webkit-scrollbar-thumb {
+  background: var(--surface-bright);
+  border-radius: 10px;
+}
+
+.appShell {
+  display: flex;
+  flex-direction: column;
+  height: 100dvh;
+  width: 100%;
+}
+
+.topBar {
+  display: flex;
+  align-items: center;
+  gap: 1.25rem;
+  padding: 0.7rem 1.25rem;
+  background: var(--topbar-bg);
+  backdrop-filter: blur(16px);
+  border-bottom: 1px solid var(--topbar-border);
+  box-shadow: 0 1px 24px rgba(0, 0, 0, 0.35);
+  flex-wrap: wrap;
+  z-index: 10;
+}
+
+.topBarGroup {
+  display: flex;
+  flex-direction: column;
+  gap: 0.3rem;
+}
+
+.controlLabel {
+  font-size: 0.7rem;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--control-muted);
+}
+
+.topBarDivider {
+  width: 1px;
+  height: 2.25rem;
+  background: var(--topbar-border);
+  align-self: center;
+}
+
+.topBarSpacer {
+  flex: 1;
+}
+
+.scenarioSelect {
+  padding: 0.45rem 2rem 0.45rem 0.75rem;
+  font-size: 0.9rem;
+  font-weight: 500;
+  color: var(--foreground);
+  background: var(--surface-container-high);
+  border: 1px solid var(--control-border);
+  border-radius: 0.5rem;
+  cursor: pointer;
+  transition:
+    border-color 150ms ease,
+    box-shadow 150ms ease;
+}
+
+.scenarioSelect:hover {
+  border-color: var(--accent);
+}
+
+.scenarioSelect:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 1px;
+}
+
+.segmentedControl {
+  display: inline-flex;
+  gap: 2px;
+  padding: 3px;
+  background: var(--control-track);
+  border: 1px solid var(--control-border);
+  border-radius: 0.5rem;
+}
+
+.segmentedOption {
+  border: none;
+  background: transparent;
+  padding: 0.4rem 0.85rem;
+  font-size: 0.85rem;
+  font-weight: 500;
+  color: var(--control-muted);
+  border-radius: 0.4rem;
+  cursor: pointer;
+  transition:
+    background-color 150ms ease,
+    color 150ms ease,
+    box-shadow 150ms ease;
+}
+
+.segmentedOption:hover {
+  color: var(--foreground);
+}
+
+.segmentedOptionActive,
+.segmentedOptionActive:hover {
+  background: var(--accent);
+  color: var(--surface-container-lowest);
+  font-weight: 700;
+  box-shadow: 0 0 12px var(--accent-glow);
+}
+
+.logoutButton {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  padding: 0.5rem 1rem;
+  font-size: 0.875rem;
+  font-weight: 500;
+  color: var(--foreground);
+  background: var(--surface-container-high);
+  border: 1px solid var(--control-border);
+  border-radius: 0.5rem;
+  cursor: pointer;
+  transition:
+    background-color 150ms ease,
+    border-color 150ms ease;
+}
+
+.logoutButton:hover {
+  background: var(--surface-bright);
+  border-color: var(--accent);
+}
+
+.logoutButton .material-symbols-outlined {
+  font-size: 18px;
+}
+
+.mainArea {
+  display: flex;
+  flex: 1;
+  min-height: 0;
+}
+
+.graphArea {
+  position: relative;
+  flex: 1;
+  min-width: 0;
+  background-color: var(--background);
+  background-image: radial-gradient(circle, rgba(231, 236, 247, 0.06) 1px, transparent 1px);
+  background-size: 26px 26px;
+}
+
+/* React Flow chrome, restyled to sit on the dark canvas */
+.graphArea .react-flow__controls {
+  box-shadow: none;
+  border-radius: 0.5rem;
+  overflow: hidden;
+  border: 1px solid var(--panel-border);
+}
+
+.graphArea .react-flow__controls-button {
+  background: var(--glass-bg);
+  backdrop-filter: blur(12px);
+  border-bottom: 1px solid var(--panel-border);
+  fill: var(--foreground);
+}
+
+.graphArea .react-flow__controls-button:hover {
+  background: var(--surface-container-high);
+}
+
+.graphArea .react-flow__attribution {
+  background: transparent;
+  color: var(--control-muted);
+}
+
+.severityLegend {
+  position: absolute;
+  /* Bottom-right, not bottom-left - React Flow's zoom Controls already
+     occupy that corner. */
+  right: 1rem;
+  bottom: 1rem;
+  z-index: 5;
+  display: flex;
+  flex-direction: column;
+  gap: 0.4rem;
+  padding: 0.75rem 0.9rem;
+  background: var(--glass-bg);
+  backdrop-filter: blur(12px);
+  border: 1px solid var(--panel-border);
+  border-radius: 0.625rem;
+  box-shadow: 0 8px 30px rgba(0, 0, 0, 0.25);
+  pointer-events: none;
+}
+
+.severityLegendTitle {
+  font-size: 0.7rem;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--control-muted);
+  margin-bottom: 0.15rem;
+}
+
+.severityLegendRow {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  font-size: 0.8rem;
+  color: var(--foreground);
+}
+
+/* Side panels now sit on the left of the graph, styled as floating glass
+   cards rather than a flush docked sidebar. */
+.sidePanels {
+  width: 22rem;
+  max-width: 100%;
+  overflow-y: auto;
+  background: var(--surface-container-lowest);
+  border-right: 1px solid var(--panel-border);
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+  padding: 0.75rem;
+}
+
+.panel {
+  padding: 1.1rem;
+  background: var(--glass-bg);
+  backdrop-filter: blur(12px);
+  border: 1px solid var(--panel-border);
+  border-radius: 0.75rem;
+  box-shadow: 0 8px 30px rgba(0, 0, 0, 0.25);
+}
+
+.panel h2 {
+  font-size: 1rem;
+  font-weight: 700;
+  letter-spacing: 0.01em;
+}
+
+.panelHeader {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.5rem;
+}
+
+.panelHeader button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border: none;
+  background: transparent;
+  line-height: 1;
+  cursor: pointer;
+  color: var(--control-muted);
+  border-radius: 0.375rem;
+  padding: 0.25rem;
+  transition:
+    color 150ms ease,
+    background-color 150ms ease;
+}
+
+.panelHeader button:hover {
+  color: var(--foreground);
+  background: var(--surface-container-high);
+}
+
+.panelSummaryToggle {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.5rem;
+  width: 100%;
+  border: none;
+  background: transparent;
+  padding: 0;
+  color: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+
+.panelSummaryToggle .material-symbols-outlined {
+  color: var(--control-muted);
+  font-size: 20px;
+  transition: color 150ms ease;
+}
+
+.panelSummaryToggle:hover .material-symbols-outlined {
+  color: var(--accent);
+}
+
+.detailToggle {
+  display: inline-block;
+  margin-top: 0.6rem;
+  padding: 0;
+  border: none;
+  background: transparent;
+  color: var(--accent);
+  font-size: 0.8rem;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.detailToggle:hover {
+  text-decoration: underline;
+}
+
+.panelHeader button .material-symbols-outlined {
+  font-size: 20px;
+}
+
+.valueList {
+  display: grid;
+  grid-template-columns: 1fr auto;
+  gap: 0.35rem 0.75rem;
+  font-size: 0.9rem;
+  margin: 0.75rem 0;
+}
+
+.valueList dt {
+  color: var(--control-muted);
+}
+
+.valueList dd {
+  font-weight: 600;
+  text-align: right;
+}
+
+.editControls {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+  margin-top: 0.75rem;
+}
+
+.editControls label {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+  font-size: 0.85rem;
+}
+
+.editControls select,
+.editControls input {
+  padding: 0.4rem 0.6rem;
+  color: var(--foreground);
+  background: var(--surface-container-high);
+  border: 1px solid var(--control-border);
+  border-radius: 0.375rem;
+}
+
+.editControls button {
+  padding: 0.5rem 0.75rem;
+  color: var(--foreground);
+  background: var(--surface-container-high);
+  border: 1px solid var(--control-border);
+  border-radius: 0.5rem;
+  cursor: pointer;
+  transition: background-color 150ms ease;
+}
+
+.editControls button:hover {
+  background: var(--surface-bright);
+}
+
+.editImpact {
+  margin-top: 0.75rem;
+  padding: 0.6rem 0.75rem;
+  background: var(--accent-soft);
+  color: var(--oslo-lys-bla);
+  border: 1px solid var(--panel-border);
+  border-radius: 0.5rem;
+  font-size: 0.85rem;
+}
+
+.hint {
+  font-size: 0.85rem;
+  color: var(--control-muted);
+}
+
+.comparisonTable {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.85rem;
+  margin-top: 0.75rem;
+}
+
+.comparisonTable th {
+  color: var(--control-muted);
+  font-size: 0.7rem;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  font-weight: 700;
+}
+
+.comparisonTable th,
+.comparisonTable td {
+  text-align: right;
+  padding: 0.35rem 0.5rem;
+}
+
+.comparisonTable th:first-child,
+.comparisonTable td:first-child {
+  text-align: left;
+}
+
+.comparisonTable tbody tr:nth-child(odd) {
+  background: rgba(255, 255, 255, 0.03);
 }
