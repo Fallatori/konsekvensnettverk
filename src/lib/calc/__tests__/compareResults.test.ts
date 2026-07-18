@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { compareResults, compareToOriginal, compareToPrevious } from "@/lib/calc/compareResults";
+import { compareResults, compareToPrevious } from "@/lib/calc/compareResults";
 import type { RecomputeResult } from "@/lib/calc/recompute";
 
 function node(overrides: Partial<RecomputeResult["nodes"][number]>): RecomputeResult["nodes"][number] {
@@ -70,26 +70,6 @@ describe("compareResults", () => {
   });
 });
 
-describe("compareToOriginal", () => {
-  it("compares each node's originalConsequenceValue against its totalConsequenceValue", () => {
-    const result: RecomputeResult = {
-      nodes: [node({ id: "a", originalConsequenceValue: 80, totalConsequenceValue: 40 })],
-      edges: [],
-    };
-    const comparison = compareToOriginal(result);
-    expect(comparison.nodes[0]).toMatchObject({ baseline: 80, current: 40, bucket: "decreased" });
-  });
-
-  it("excludes the hendelse node", () => {
-    const result: RecomputeResult = {
-      nodes: [node({ id: "hendelse-1", isHendelse: true, isDirect: true })],
-      edges: [],
-    };
-    const comparison = compareToOriginal(result);
-    expect(comparison.nodes).toHaveLength(0);
-  });
-});
-
 describe("compareToPrevious", () => {
   it("diffs totalConsequenceValue between two full recompute results (edit-impact baseline)", () => {
     const previous: RecomputeResult = {
@@ -102,5 +82,18 @@ describe("compareToPrevious", () => {
     };
     const comparison = compareToPrevious(previous, next);
     expect(comparison.nodes[0]).toMatchObject({ baseline: 40, current: 60, delta: 20, bucket: "increased" });
+  });
+
+  it("excludes the hendelse node", () => {
+    const previous: RecomputeResult = {
+      nodes: [node({ id: "hendelse-1", isHendelse: true, isDirect: true })],
+      edges: [],
+    };
+    const next: RecomputeResult = {
+      nodes: [node({ id: "hendelse-1", isHendelse: true, isDirect: true })],
+      edges: [],
+    };
+    const comparison = compareToPrevious(previous, next);
+    expect(comparison.nodes).toHaveLength(0);
   });
 });

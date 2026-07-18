@@ -1,5 +1,10 @@
 import type { InternalNode } from "@xyflow/react";
 
+/** "graf" nodes are circular gauge dials; "lys"/"terminal" nodes are
+ * rectangular cards - each shape needs its own boundary-intersection math
+ * below (see NodeBoundary). */
+export type NodeBoundary = { shape: "circle"; radius: number } | { shape: "rect"; halfWidth: number; halfHeight: number };
+
 /** Node center in absolute flow coordinates (positionAbsolute is top-left). */
 function nodeCenter(node: InternalNode): { x: number; y: number } {
   const width = node.measured?.width ?? 0;
@@ -10,18 +15,37 @@ function nodeCenter(node: InternalNode): { x: number; y: number } {
   };
 }
 
+/** Where a ray from `center` in unit direction (ux, uy) exits `boundary`. */
+function boundaryPoint(
+  center: { x: number; y: number },
+  ux: number,
+  uy: number,
+  boundary: NodeBoundary,
+): { x: number; y: number } {
+  if (boundary.shape === "circle") {
+    return { x: center.x + ux * boundary.radius, y: center.y + uy * boundary.radius };
+  }
+  // Axis-aligned rectangle: the ray hits whichever of the two edge planes
+  // (vertical at halfWidth, horizontal at halfHeight) it reaches first.
+  const tX = ux !== 0 ? boundary.halfWidth / Math.abs(ux) : Infinity;
+  const tY = uy !== 0 ? boundary.halfHeight / Math.abs(uy) : Infinity;
+  const t = Math.min(tX, tY);
+  return { x: center.x + ux * t, y: center.y + uy * t };
+}
+
 /**
  * Floating-edge endpoints (Kumu-style): rather than snapping to a fixed
  * handle position (which is what causes many edges to converge on the exact
  * same point and overlap in a hierarchical layout), compute where the
- * straight line between two node centers crosses each node's own circular
- * boundary. Works for any node arrangement, not just top-to-bottom trees.
+ * straight line between two node centers crosses each node's own boundary
+ * (circle or rect card, per the active theme). Works for any node
+ * arrangement, not just top-to-bottom trees.
  */
 export function floatingEdgePoints(
   source: InternalNode,
   target: InternalNode,
-  sourceRadius: number,
-  targetRadius: number,
+  sourceBoundary: NodeBoundary,
+  targetBoundary: NodeBoundary,
 ): { sx: number; sy: number; tx: number; ty: number } {
   const sourceCenter = nodeCenter(source);
   const targetCenter = nodeCenter(target);
@@ -32,12 +56,10 @@ export function floatingEdgePoints(
   const ux = dx / distance;
   const uy = dy / distance;
 
-  return {
-    sx: sourceCenter.x + ux * sourceRadius,
-    sy: sourceCenter.y + uy * sourceRadius,
-    tx: targetCenter.x - ux * targetRadius,
-    ty: targetCenter.y - uy * targetRadius,
-  };
+  const s = boundaryPoint(sourceCenter, ux, uy, sourceBoundary);
+  const t = boundaryPoint(targetCenter, -ux, -uy, targetBoundary);
+
+  return { sx: s.x, sy: s.y, tx: t.x, ty: t.y };
 }
 
 /** A small perpendicular bow so that edges read as smooth organic curves

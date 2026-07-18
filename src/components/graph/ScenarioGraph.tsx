@@ -16,19 +16,21 @@ import type { ComputedEdge, ComputedNode } from "@/lib/calc/recompute";
 import { NODE_SUBTYPES, nearestConsequenceLabel, type ConsequenceLabel } from "@/lib/calc/mappings";
 import { GaugeNode, type GaugeNodeType } from "@/components/graph/GaugeNode";
 import { FloatingEdge, EDGE_WIRE_COLOR, type FloatingEdgeType } from "@/components/graph/FloatingEdge";
-import { NODE_HEIGHT, NODE_RADIUS, NODE_WIDTH } from "@/components/graph/layoutConstants";
+import { ZoneBackgroundNode, type ZoneBackgroundNodeType, type ZoneKind } from "@/components/graph/ZoneBackgroundNode";
 import { SeverityLegend } from "@/components/graph/SeverityLegend";
 import { GraphHoverProvider } from "@/components/graph/graphHoverContext";
+import { useCurrentTheme } from "@/lib/styles/context";
+import { THEME_NODE_LAYOUT, type NodeLayoutSpec } from "@/lib/styles/tokens";
 
-const nodeTypes = { gauge: GaugeNode };
+const nodeTypes = { gauge: GaugeNode, zoneBackground: ZoneBackgroundNode };
 const edgeTypes = { floating: FloatingEdge };
+
+type FlowNode = GaugeNodeType | ZoneBackgroundNodeType;
 
 const SIMULATION_TICKS = 500;
 const LINK_DISTANCE = 190;
 const CHARGE_STRENGTH = -700;
 const CHARGE_MAX_DISTANCE = 700;
-const COLUMN_SPACING = 260;
-const ROW_SPACING = 140;
 // How strongly nodes are pulled back toward their assigned column/row versus
 // left to settle wherever charge/link/collide puts them. X is firm (columns
 // must stay columns); Y is loose (natural vertical spacing within a column).
@@ -37,6 +39,13 @@ const ROW_ANCHOR_STRENGTH = 0.06;
 
 const INDIRECT_EDGE_WIDTH = 2;
 const MAX_INDIRECT_POINTS = 20; // INDIRECT_IMPACT_POINTS["svært store"] - see lib/calc/mappings.ts
+
+// Extra top padding (vs the other three sides), in fixed screen pixels so it
+// doesn't depend on content size/zoom, so the zone-lane label row (see
+// buildZoneBackgrounds/ZoneBackgroundNode) is never cropped above the fitted
+// viewport - the lanes extend above the real node cluster by design, for
+// that label headroom.
+const FIT_VIEW_PADDING = { top: "160px" as const, bottom: 0.12, left: 0.12, right: 0.12 };
 
 /** Indirect strength reads as opacity, not width - color itself is the
  * source->target subtype gradient. */
@@ -76,7 +85,7 @@ function columnOrder(nodes: ComputedNode[]): string[] {
 
 /** Each node's target column (fixed x) and row (initial y, softly anchored)
  * - the structured starting point that the force simulation then refines. */
-function computeAnchors(nodes: ComputedNode[]): Map<string, { x: number; y: number }> {
+function computeAnchors(nodes: ComputedNode[], layout: NodeLayoutSpec): Map<string, { x: number; y: number }> {
   const order = columnOrder(nodes);
   const columnIndex = new Map(order.map((key, i) => [key, i]));
 
@@ -88,10 +97,10 @@ function computeAnchors(nodes: ComputedNode[]): Map<string, { x: number; y: numb
 
   const anchors = new Map<string, { x: number; y: number }>();
   for (const [key, groupNodes] of byColumn) {
-    const x = (columnIndex.get(key) ?? 0) * COLUMN_SPACING;
+    const x = (columnIndex.get(key) ?? 0) * layout.columnSpacing;
     const sorted = [...groupNodes].sort((a, b) => a.id.localeCompare(b.id));
     sorted.forEach((node, i) => {
-      const y = (i - (sorted.length - 1) / 2) * ROW_SPACING;
+      const y = (i - (sorted.length - 1) / 2) * layout.rowSpacing;
       anchors.set(node.id, { x, y });
     });
   }
@@ -104,10 +113,18 @@ function computeAnchors(nodes: ComputedNode[]): Map<string, { x: number; y: numb
  * simulation (repulsion + link attraction + collision) refines it - nodes
  * are softly anchored to their column/row rather than hard-pinned, so the
  * result stays organized but still settles into natural, non-overlapping
- * spacing the way a pure grid wouldn't.
+ * spacing the way a pure grid wouldn't. `layout` is the active theme's node
+ * sizing/spacing (see theme.ts) - "lys"/"terminal" cards are much wider than
+ * "graf"'s gauge circles, so column/row spacing and collision radius scale
+ * with the theme too.
  */
-function layoutWithForce(nodes: ComputedNode[], gaugeNodes: GaugeNodeType[], edges: Edge[]): GaugeNodeType[] {
-  const anchors = computeAnchors(nodes);
+function layoutWithForce(
+  nodes: ComputedNode[],
+  gaugeNodes: GaugeNodeType[],
+  edges: Edge[],
+  layout: NodeLayoutSpec,
+): GaugeNodeType[] {
+  const anchors = computeAnchors(nodes, layout);
 
   const simNodes: SimNode[] = gaugeNodes.map((node) => {
     const anchor = anchors.get(node.id) ?? { x: 0, y: 0 };
@@ -125,7 +142,7 @@ function layoutWithForce(nodes: ComputedNode[], gaugeNodes: GaugeNodeType[], edg
       // pulls a densely-connected graph (many indirect edges) into a tight
       // "hairball" instead of letting repulsion/collision spread it out.
     )
-    .force("collide", forceCollide(NODE_RADIUS + 32).iterations(2))
+    .force("collide", forceCollide(layout.radius + 32).iterations(2))
     .force("x", forceX<SimNode>((node) => node.anchorX).strength(COLUMN_ANCHOR_STRENGTH))
     .force("y", forceY<SimNode>((node) => node.anchorY).strength(ROW_ANCHOR_STRENGTH))
     .stop();
@@ -139,7 +156,82 @@ function layoutWithForce(nodes: ComputedNode[], gaugeNodes: GaugeNodeType[], edg
 
   return gaugeNodes.map((node) => {
     const position = settled.get(node.id) ?? { x: 0, y: 0 };
-    return { ...node, position: { x: position.x - NODE_WIDTH / 2, y: position.y - NODE_HEIGHT / 2 } };
+    return { ...node, position: { x: position.x - layout.width / 2, y: position.y - layout.height / 2 } };
+  });
+}
+
+const ZONE_ORDER: ZoneKind[] = ["hendelse", "direkte", "indirekte"];
+const ZONE_LABELS: Record<ZoneKind, string> = {
+  hendelse: "Hendelse",
+  direkte: "Direkte påvirkning",
+  indirekte: "Indirekte påvirkning",
+};
+
+function zoneKindFor(node: ComputedNode): ZoneKind {
+  if (node.isHendelse) return "hendelse";
+  return node.isDirect ? "direkte" : "indirekte";
+}
+
+/**
+ * One backdrop "lane" per causal stage present in this scenario (see
+ * ZoneBackgroundNode) - sized to the actual settled layout so it always
+ * matches the real node cluster, with adjacent lanes meeting exactly at the
+ * midpoint between their two stages (no gap, no overlap). Only "hendelse"
+ * always has a lane; "indirekte" only appears once the indirect toggle has
+ * actually synthesized nodes for it.
+ */
+function buildZoneBackgrounds(
+  nodes: ComputedNode[],
+  positioned: GaugeNodeType[],
+  layout: NodeLayoutSpec,
+): ZoneBackgroundNodeType[] {
+  const positionById = new Map(positioned.map((node) => [node.id, node]));
+  const extentByZone = new Map<ZoneKind, { minX: number; maxX: number }>();
+  let minY = Infinity;
+  let maxY = -Infinity;
+
+  for (const node of nodes) {
+    const pos = positionById.get(node.id);
+    if (!pos) continue;
+    const zone = zoneKindFor(node);
+    const left = pos.position.x;
+    const right = pos.position.x + layout.width;
+    const existing = extentByZone.get(zone);
+    extentByZone.set(zone, {
+      minX: existing ? Math.min(existing.minX, left) : left,
+      maxX: existing ? Math.max(existing.maxX, right) : right,
+    });
+    minY = Math.min(minY, pos.position.y);
+    maxY = Math.max(maxY, pos.position.y + layout.height);
+  }
+
+  const present = ZONE_ORDER.filter((zone) => extentByZone.has(zone));
+  if (present.length === 0) return [];
+
+  const EDGE_PAD_X = 70;
+  const EDGE_PAD_Y = 80;
+  const top = minY - EDGE_PAD_Y;
+  const height = maxY - minY + EDGE_PAD_Y * 2;
+
+  return present.map((zone, i) => {
+    const extent = extentByZone.get(zone)!;
+    const prevExtent = i > 0 ? extentByZone.get(present[i - 1])! : null;
+    const nextExtent = i < present.length - 1 ? extentByZone.get(present[i + 1])! : null;
+
+    const left = prevExtent ? (prevExtent.maxX + extent.minX) / 2 : extent.minX - EDGE_PAD_X;
+    const right = nextExtent ? (extent.maxX + nextExtent.minX) / 2 : extent.maxX + EDGE_PAD_X;
+
+    return {
+      id: `zone:${zone}`,
+      type: "zoneBackground",
+      position: { x: left, y: top },
+      draggable: false,
+      selectable: false,
+      focusable: false,
+      zIndex: -1,
+      style: { width: right - left, height },
+      data: { label: ZONE_LABELS[zone], kind: zone, isFirst: i === 0, isLast: i === present.length - 1 },
+    };
   });
 }
 
@@ -147,12 +239,19 @@ function layoutWithForce(nodes: ComputedNode[], gaugeNodes: GaugeNodeType[], edg
  * switching scenarios) changes how many columns/nodes exist, so without
  * this the view stays zoomed to the old bounds and new columns render
  * off-screen. Must be rendered inside <ReactFlow> to reach its context. */
-function FitViewOnDataChange({ nodeIdsKey }: { nodeIdsKey: string }) {
+function FitViewOnDataChange({ nodeIdsKey, fitNodes }: { nodeIdsKey: string; fitNodes: { id: string }[] }) {
   const { fitView } = useReactFlow();
 
   useEffect(() => {
-    const frame = requestAnimationFrame(() => fitView({ duration: 300 }));
+    // Padding so wide "lys"/"terminal" cards get breathing room instead of
+    // sitting flush against the viewport edge (zero-padding fitView draws
+    // a bounding box exactly as tight as the content). Fits only the real
+    // (non-zone-background) nodes - the zone lanes are deliberately a bit
+    // larger than the node cluster for label headroom, and fitting them too
+    // would zoom out further than necessary.
+    const frame = requestAnimationFrame(() => fitView({ duration: 300, padding: FIT_VIEW_PADDING, nodes: fitNodes }));
     return () => cancelAnimationFrame(frame);
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- fitNodes is a new array every render; nodeIdsKey is the real dependency
   }, [nodeIdsKey, fitView]);
 
   return null;
@@ -170,6 +269,8 @@ export function ScenarioGraph({
   onEdgeClick?: (edgeId: string) => void;
 }) {
   const [hoveredNodeId, setHoveredNodeId] = useState<string | null>(null);
+  const theme = useCurrentTheme();
+  const layout = THEME_NODE_LAYOUT[theme];
 
   // hoveredNodeId is deliberately NOT a dependency of this memo (or passed
   // via the node/edge objects at all): React Flow resets its own hover
@@ -178,9 +279,16 @@ export function ScenarioGraph({
   // hover would fight the very interaction this is meant to support.
   // GaugeNode/FloatingEdge read hover state from GraphHoverProvider instead
   // (see graphHoverContext.ts) and apply their own opacity locally.
-  const { rfNodes, rfEdges } = useMemo(() => {
+  const { rfNodes, rfEdges, fitNodes } = useMemo(() => {
     const nodesById = new Map(nodes.map((node) => [node.id, node]));
-    const severityFor = (nodeId: string): ConsequenceLabel => nodesById.get(nodeId)?.consequenceCategory ?? "ingen";
+    // Time-adjusted, not the node's static authored consequenceCategory -
+    // matches both the gauge's own displayed category below and the direct
+    // edge's connectionLevel (lib/calc/recompute.ts), so a fully-recovered
+    // target shows no marker at all, same as its "ingen" gauge and edge width.
+    const severityFor = (nodeId: string): ConsequenceLabel => {
+      const node = nodesById.get(nodeId);
+      return node ? nearestConsequenceLabel(node.totalConsequenceValue) : "ingen";
+    };
 
     const baseNodes: GaugeNodeType[] = nodes.map((node) => ({
       id: node.id,
@@ -219,8 +327,18 @@ export function ScenarioGraph({
             { strokeWidth: INDIRECT_EDGE_WIDTH, strokeOpacity: indirectEdgeOpacity(edge.connectionLevel) },
     }));
 
-    return { rfNodes: layoutWithForce(nodes, baseNodes, baseEdges), rfEdges: baseEdges };
-  }, [nodes, edges]);
+    const positioned = layoutWithForce(nodes, baseNodes, baseEdges, layout);
+    const zoneBackgrounds = buildZoneBackgrounds(nodes, positioned, layout);
+
+    // Zone lanes first (and z-indexed below, see ZoneBackgroundNode) so real
+    // nodes always paint on top of them.
+    return {
+      rfNodes: [...zoneBackgrounds, ...positioned] as FlowNode[],
+      rfEdges: baseEdges,
+      fitNodes: positioned.map((node) => ({ id: node.id })),
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- `layout` is derived from `theme`, listed explicitly instead
+  }, [nodes, edges, theme]);
 
   // Adjacency is structural (from edges alone), so it's stable across hovers;
   // only the small "which set is currently active" result depends on
@@ -249,16 +367,30 @@ export function ScenarioGraph({
           edges={rfEdges}
           nodeTypes={nodeTypes}
           edgeTypes={edgeTypes}
-          onNodeClick={(_event, node) => onNodeClick?.(node.id)}
+          // Zone-lane backgrounds are non-interactive decoration, not real
+          // graph content - skip them so a click/hover on empty lane space
+          // doesn't clear the selected node or trigger hover-dimming.
+          onNodeClick={(_event, node) => node.type !== "zoneBackground" && onNodeClick?.(node.id)}
           onEdgeClick={(_event, edge) => onEdgeClick?.(edge.id)}
-          onNodeMouseEnter={(_event, node) => setHoveredNodeId(node.id)}
+          onNodeMouseEnter={(_event, node) => node.type !== "zoneBackground" && setHoveredNodeId(node.id)}
           onNodeMouseLeave={() => setHoveredNodeId(null)}
           fitView
+          fitViewOptions={{ padding: FIT_VIEW_PADDING, nodes: fitNodes }}
+          // Default minZoom (0.5) clamps fitView before it can zoom out far
+          // enough for the much wider "lys"/"terminal" cards, which is what
+          // was leaving cards cut off at the viewport edge.
+          minZoom={0.15}
           nodesDraggable
           nodesConnectable={false}
           elementsSelectable
         >
-          <FitViewOnDataChange nodeIdsKey={rfNodes.map((n) => n.id).sort().join(",")} />
+          {/* Theme is part of the key (not just node ids) because switching
+              theme swaps node sizes/positions (circle dial <-> card) without
+              changing which nodes exist - the view must re-fit either way. */}
+          <FitViewOnDataChange
+            nodeIdsKey={`${theme}|${rfNodes.map((n) => n.id).sort().join(",")}`}
+            fitNodes={fitNodes}
+          />
           <Controls showInteractive={false} />
         </ReactFlow>
       </GraphHoverProvider>

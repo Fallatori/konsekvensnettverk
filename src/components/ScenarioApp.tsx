@@ -4,22 +4,23 @@ import { useEffect, useRef, useState } from "react";
 import { signOut } from "next-auth/react";
 import { ScenarioGraph } from "@/components/graph/ScenarioGraph";
 import { SegmentedControl } from "@/components/SegmentedControl";
-import { ComparisonPanel } from "@/components/ComparisonPanel";
+import { OverviewPanel } from "@/components/OverviewPanel";
 import { NodeDetailPanel } from "@/components/NodeDetailPanel";
 import { EdgeDetailPopover } from "@/components/graph/EdgeDetailPopover";
 import { compareToPrevious } from "@/lib/calc/compareResults";
-import { describeDelta } from "@/lib/calc/describeDelta";
+import { describeEditImpact, type LastAction } from "@/lib/calc/describeEditImpact";
 import type { RecomputeResult } from "@/lib/calc/recompute";
 import type { ConsequenceLabel } from "@/lib/calc/mappings";
 import { TIMEFRAME_DAYS, type TimeframeDays } from "@/lib/calc/catalog";
+import { EDGE_STYLE_OPTIONS, THEME_OPTIONS } from "@/lib/styles/tokens";
+import { EdgeStyleProvider, ThemeProvider, useEdgeStyle, useTheme } from "@/lib/styles/context";
 
 type ScenarioSummary = { id: string; name: string };
 type Overrides = {
   nodeCategories: Record<string, ConsequenceLabel>;
-  connectionLevels: Record<string, number>;
 };
 
-const EMPTY_OVERRIDES: Overrides = { nodeCategories: {}, connectionLevels: {} };
+const EMPTY_OVERRIDES: Overrides = { nodeCategories: {} };
 const RECOMPUTE_DEBOUNCE_MS = 300;
 
 export function ScenarioApp() {
@@ -30,15 +31,26 @@ export function ScenarioApp() {
   const [overrides, setOverrides] = useState<Overrides>(EMPTY_OVERRIDES);
   const [result, setResult] = useState<RecomputeResult | null>(null);
   const [editImpactSummary, setEditImpactSummary] = useState<string | null>(null);
+  const [lastAction, setLastAction] = useState<LastAction | null>(null);
   const [selectedNodeId, setSelectedNodeId] = useState<string | null>(null);
   const [selectedEdgeId, setSelectedEdgeId] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
   const [scenariosError, setScenariosError] = useState<string | null>(null);
+  const [theme, setTheme] = useTheme();
+  const [edgeStyle, setEdgeStyle] = useEdgeStyle();
 
   const resultRef = useRef<RecomputeResult | null>(null);
   useEffect(() => {
     resultRef.current = result;
   }, [result]);
+
+  // Read fresh inside the debounced recompute effect below without adding
+  // lastAction to its dependency array (that would fire an extra recompute
+  // on every action instead of only once the debounce settles).
+  const lastActionRef = useRef<LastAction | null>(null);
+  useEffect(() => {
+    lastActionRef.current = lastAction;
+  }, [lastAction]);
 
   // Selecting a scenario is a user-driven event (either the dropdown, or the
   // initial default pick once the list loads) - handled imperatively rather
@@ -53,6 +65,7 @@ export function ScenarioApp() {
     setSelectedNodeId(null);
     setSelectedEdgeId(null);
     setEditImpactSummary(null);
+    setLastAction(null);
     resultRef.current = null; // no "previous" yet for this scenario
     setResult(null);
 
@@ -100,7 +113,7 @@ export function ScenarioApp() {
           const previous = resultRef.current;
           setResult(data);
           setEditImpactSummary(
-            previous ? describeDelta(compareToPrevious(previous, data), "sinceLastChange") : null,
+            previous ? describeEditImpact(compareToPrevious(previous, data), lastActionRef.current) : null,
           );
         });
     }, RECOMPUTE_DEBOUNCE_MS);
@@ -109,25 +122,34 @@ export function ScenarioApp() {
     // eslint-disable-next-line react-hooks/exhaustive-deps -- scenarioId change is handled by the base-load effect above
   }, [indirectEnabled, timeframeDays, overrides]);
 
+  function handleIndirectEnabledChange(enabled: boolean) {
+    setLastAction({ type: "indirect", enabled });
+    setIndirectEnabled(enabled);
+  }
+
+  function handleTimeframeDaysChange(days: TimeframeDays) {
+    setLastAction({ type: "timeframe", days });
+    setTimeframeDays(days);
+  }
+
   function handleCategoryChange(nodeId: string, category: ConsequenceLabel) {
+    const nodeLabel = result?.nodes.find((n) => n.id === nodeId)?.label ?? nodeId;
+    setLastAction({ type: "category", nodeId, nodeLabel, category });
     setOverrides((prev) => ({ ...prev, nodeCategories: { ...prev.nodeCategories, [nodeId]: category } }));
   }
 
-  function handleConnectionLevelChange(edgeId: string, level: number) {
-    setOverrides((prev) => ({ ...prev, connectionLevels: { ...prev.connectionLevels, [edgeId]: level } }));
-  }
-
   function handleResetOverrides() {
+    setLastAction({ type: "reset" });
     setOverrides(EMPTY_OVERRIDES);
   }
 
   const selectedNode = result?.nodes.find((n) => n.id === selectedNodeId) ?? null;
   const selectedEdge = result?.edges.find((e) => e.id === selectedEdgeId) ?? null;
-  const incomingDirectEdge = selectedNode
-    ? (result?.edges.find((e) => e.kind === "DIRECT" && e.childId === selectedNode.id) ?? null)
-    : null;
+  const scenarioName = scenarios.find((s) => s.id === scenarioId)?.name ?? "";
 
   return (
+    <ThemeProvider value={theme}>
+    <EdgeStyleProvider value={edgeStyle}>
     <div className="appShell">
       <header className="topBar">
         <div className="topBarGroup">
@@ -156,7 +178,7 @@ export function ScenarioApp() {
               { value: true, label: "På" },
             ]}
             value={indirectEnabled}
-            onChange={setIndirectEnabled}
+            onChange={handleIndirectEnabledChange}
           />
         </div>
 
@@ -169,8 +191,18 @@ export function ScenarioApp() {
               label: day === 1 ? "1 dag" : `${day} dager`,
             }))}
             value={timeframeDays}
-            onChange={setTimeframeDays}
+            onChange={handleTimeframeDaysChange}
           />
+        </div>
+
+        <div className="topBarGroup">
+          <span className="controlLabel">Stil</span>
+          <SegmentedControl ariaLabel="Stil" options={THEME_OPTIONS} value={theme} onChange={setTheme} />
+        </div>
+
+        <div className="topBarGroup">
+          <span className="controlLabel">Forbindelse</span>
+          <SegmentedControl ariaLabel="Forbindelse" options={EDGE_STYLE_OPTIONS} value={edgeStyle} onChange={setEdgeStyle} />
         </div>
 
         <div className="topBarSpacer" />
@@ -187,16 +219,21 @@ export function ScenarioApp() {
 
       <div className="mainArea">
         <aside className="sidePanels">
-          {result && <ComparisonPanel result={result} />}
+          {result && (
+            <OverviewPanel
+              result={result}
+              scenarioName={scenarioName}
+              indirectEnabled={indirectEnabled}
+              timeframeDays={timeframeDays}
+            />
+          )}
 
           {selectedNode && (
             <NodeDetailPanel
               node={selectedNode}
-              incomingDirectEdge={incomingDirectEdge}
               editImpactSummary={editImpactSummary}
               onClose={() => setSelectedNodeId(null)}
               onCategoryChange={handleCategoryChange}
-              onConnectionLevelChange={handleConnectionLevelChange}
               onResetOverrides={handleResetOverrides}
             />
           )}
@@ -229,5 +266,7 @@ export function ScenarioApp() {
         </div>
       </div>
     </div>
+    </EdgeStyleProvider>
+    </ThemeProvider>
   );
 }

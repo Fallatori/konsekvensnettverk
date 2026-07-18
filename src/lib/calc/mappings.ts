@@ -96,20 +96,18 @@ export const PRISMA_CONSEQUENCE_BY_LABEL: Record<ConsequenceLabel, PrismaConsequ
   "svært store": "SVAERT_STORE",
 };
 
-/** Nearest ConsequenceLabel bucket for a computed 0-100 value (used to derive
- * a "current category" for a node whose value came from a formula rather
- * than direct authoring, e.g. when deciding its color band). */
+/** ConsequenceLabel bucket for a computed 0-100 value (used to derive a
+ * "current category" for a node whose value came from a formula rather than
+ * direct authoring, e.g. when deciding its color band and gauge fill).
+ * Fixed range buckets, not nearest-anchor rounding: 0 = ingen, 1-20 = svært
+ * små, 21-40 = små, 41-60 = middels, 61-80 = store, 81-100 = svært store. */
 export function nearestConsequenceLabel(value: number): ConsequenceLabel {
-  let closest: ConsequenceLabel = "ingen";
-  let closestDistance = Infinity;
-  for (const label of CONSEQUENCE_LABELS) {
-    const distance = Math.abs(CONSEQUENCE_VALUE[label] - value);
-    if (distance < closestDistance) {
-      closest = label;
-      closestDistance = distance;
-    }
-  }
-  return closest;
+  if (value <= 0) return "ingen";
+  if (value <= 20) return "svært små";
+  if (value <= 40) return "små";
+  if (value <= 60) return "middels";
+  if (value <= 80) return "store";
+  return "svært store";
 }
 
 // --- Indirect impact point mapping (shared across all catalog functions) ---
@@ -139,7 +137,7 @@ export function consequenceLabelForIndirectPoints(points: number): ConsequenceLa
 // --- Node subtype ---
 // A categorical classification applied to every node (hendelse and
 // samfunnsfunksjon alike), independent of severity - drives the node's fill
-// color in the graph (see lib/ui/subtypeColors.ts).
+// color in the graph (see lib/styles/tokens.ts).
 
 export type NodeSubtype = "hazards" | "stabilitet" | "befolkning" | "funksjon";
 

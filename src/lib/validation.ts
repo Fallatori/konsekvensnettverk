@@ -17,7 +17,7 @@ export const recomputeRequestSchema = z.object({
   overrides: z
     .object({
       nodeCategories: z.record(z.string(), consequenceLabelSchema).optional(),
-      connectionLevels: z.record(z.string(), z.number().int().min(1).max(5)).optional(),
+      connectionLevels: z.record(z.string(), z.number().int().min(0).max(5)).optional(),
     })
     .optional(),
 });

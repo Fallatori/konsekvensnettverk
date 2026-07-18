@@ -195,6 +195,71 @@ describe("recompute - cap at 100", () => {
   });
 });
 
+describe("recompute - direct edge follows the target node's time-adjusted severity", () => {
+  // The example table from requirments.md - "store" decays to fully
+  // recovered (value 0, bucket "ingen") by day 7.
+  const DECAYING_TABLE: FunctionalityTable = {
+    ingen: { 1: 100, 3: 100, 7: 100, 30: 100, 90: 100 },
+    "svært små": { 1: 95, 3: 100, 7: 100, 30: 100, 90: 100 },
+    små: { 1: 90, 3: 100, 7: 100, 30: 100, 90: 100 },
+    middels: { 1: 80, 3: 90, 7: 100, 30: 100, 90: 100 },
+    store: { 1: 60, 3: 80, 7: 100, 30: 100, 90: 100 },
+    "svært store": { 1: 40, 3: 60, 7: 80, 30: 100, 90: 100 },
+  };
+  const NODE: CatalogEntry = {
+    functionKey: "NODE",
+    label: "Node",
+    subtype: "funksjon",
+    functionalityTable: DECAYING_TABLE,
+    indirectImpactRow: emptyRow(),
+  };
+
+  function run(timeframeDays: 1 | 7, overrides?: { connectionLevels?: Record<string, number> }) {
+    return recompute(
+      {
+        hendelseId: "hendelse-1",
+        hendelseLabel: "Scenario",
+        hendelseDescription: "",
+        hendelseSubtype: "hazards",
+        directNodes: [
+          {
+            id: "node-1",
+            label: "Node",
+            description: "",
+            functionKey: "NODE",
+            subtype: "funksjon",
+            baseConsequenceCategory: "store",
+          },
+        ],
+        // Authored at 3 - should no longer matter for the default (unoverridden) value.
+        directEdges: [{ id: "edge-1", parentId: "hendelse-1", childId: "node-1", connectionLevel: 3 }],
+        overrides,
+        indirectEnabled: false,
+        timeframeDays,
+      },
+      { catalogLookup: () => NODE, functionKeys: ["NODE"] },
+    );
+  }
+
+  it("at day 1, tracks the node's current category ('store' -> ordinal 4), ignoring the authored connectionLevel", () => {
+    const result = run(1);
+    const edge = result.edges.find((e) => e.id === "edge-1");
+    expect(edge!.connectionLevel).toBe(4);
+  });
+
+  it("at day 7, once the node has fully recovered to 'ingen', the edge reads as 'ingen' (ordinal 0) too", () => {
+    const result = run(7);
+    const edge = result.edges.find((e) => e.id === "edge-1");
+    expect(edge!.connectionLevel).toBe(0);
+  });
+
+  it("still respects an explicit connectionLevels override over the derived severity", () => {
+    const result = run(1, { connectionLevels: { "edge-1": 2 } });
+    const edge = result.edges.find((e) => e.id === "edge-1");
+    expect(edge!.connectionLevel).toBe(2);
+  });
+});
+
 describe("recompute - missing catalog entry fails loudly", () => {
   it("throws rather than silently falling back to a default table", () => {
     expect(() =>

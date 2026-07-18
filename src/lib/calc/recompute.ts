@@ -2,6 +2,7 @@ import { FUNCTION_KEYS as REAL_FUNCTION_KEYS, getCatalogEntry as getRealCatalogE
 import type { CatalogEntry, TimeframeDays } from "@/lib/calc/catalog/types";
 import {
   CONSEQUENCE_LABEL_BY_PRISMA,
+  CONSEQUENCE_LABELS,
   CONSEQUENCE_VALUE,
   nearestConsequenceLabel,
   type ConsequenceLabel,
@@ -26,13 +27,17 @@ export type DirectEdgeInput = {
   id: string;
   parentId: string;
   childId: string;
+  /** Scenario-authored starting strength - no longer used as the rendered
+   * default (see ComputedEdge.connectionLevel), kept only as DB-persisted
+   * authoring metadata and as the pre-override baseline. */
   connectionLevel: number;
 };
 
 export type RecomputeOverrides = {
   /** nodeId -> overridden consequence category for this what-if request. */
   nodeCategories?: Record<string, ConsequenceLabel>;
-  /** edgeId -> overridden connection level for this what-if request. */
+  /** edgeId -> overridden connection level for this what-if request - wins
+   * over the target node's time-adjusted severity when present. */
   connectionLevels?: Record<string, number>;
 };
 
@@ -49,7 +54,7 @@ export type RecomputeInput = {
 };
 
 /** Injectable so tests can supply a small fixture catalog instead of the real
- * ~18(9)-function one - recompute() itself has no hardcoded catalog knowledge. */
+ * ~18-function one - recompute() itself has no hardcoded catalog knowledge. */
 export type RecomputeOptions = {
   catalogLookup?: (functionKey: string) => CatalogEntry;
   functionKeys?: readonly string[];
@@ -79,7 +84,10 @@ export type ComputedEdge = {
   parentId: string;
   childId: string;
   kind: "DIRECT" | "INDIRECT";
-  /** Direct: authored connectionLevel (1-5). Indirect: the point value
+  /** Direct: the target node's own time-adjusted severity, as the
+   * ConsequenceLabel taxonomy's ordinal position (0 "ingen" .. 5 "svært
+   * store") - so once a directly-hit node has fully recovered, its edge
+   * reads as "ingen" too, same as the node itself. Indirect: the point value
    * (0/1/5/10/15/20) of this specific (source, target) contribution. */
   connectionLevel: number;
 };
@@ -245,10 +253,16 @@ export function recompute(input: RecomputeInput, options: RecomputeOptions = {})
     },
   ];
 
+  // Populated alongside `nodes` so the direct-edge pass below can read each
+  // target's final, time-adjusted severity without re-deriving it.
+  const totalValueByNodeId = new Map<string, number>();
+
   for (const entry of directActive.values()) {
     const indirectValue = input.indirectEnabled
       ? formulas.maxIndirectContribution(indirectContributionsByTarget.get(entry.functionKey) ?? []).points
       : 0;
+    const totalConsequenceValue = Math.min(100, entry.timedConsequenceValue + indirectValue);
+    totalValueByNodeId.set(entry.node!.id, totalConsequenceValue);
     nodes.push({
       id: entry.node!.id,
       functionKey: entry.functionKey,
@@ -261,7 +275,7 @@ export function recompute(input: RecomputeInput, options: RecomputeOptions = {})
       originalConsequenceValue: entry.originalConsequenceValue,
       timedConsequenceValue: entry.timedConsequenceValue,
       indirectConsequenceValue: indirectValue,
-      totalConsequenceValue: Math.min(100, entry.timedConsequenceValue + indirectValue),
+      totalConsequenceValue,
     });
   }
 
@@ -286,13 +300,23 @@ export function recompute(input: RecomputeInput, options: RecomputeOptions = {})
   }
 
   // --- Assemble edges ---
-  const edges: ComputedEdge[] = input.directEdges.map((edge) => ({
-    id: edge.id,
-    parentId: edge.parentId,
-    childId: edge.childId,
-    kind: "DIRECT" as const,
-    connectionLevel: overrides.connectionLevels?.[edge.id] ?? edge.connectionLevel,
-  }));
+  // Direct edges track the target node's own time-adjusted severity by
+  // default (a fully-recovered direct hit reads as "ingen", same as the
+  // node) - an explicit connectionLevels override still wins when present.
+  const edges: ComputedEdge[] = input.directEdges.map((edge) => {
+    const override = overrides.connectionLevels?.[edge.id];
+    if (override !== undefined) {
+      return { id: edge.id, parentId: edge.parentId, childId: edge.childId, kind: "DIRECT" as const, connectionLevel: override };
+    }
+    const targetCategory = nearestConsequenceLabel(totalValueByNodeId.get(edge.childId) ?? 0);
+    return {
+      id: edge.id,
+      parentId: edge.parentId,
+      childId: edge.childId,
+      kind: "DIRECT" as const,
+      connectionLevel: CONSEQUENCE_LABELS.indexOf(targetCategory),
+    };
+  });
 
   if (input.indirectEnabled) {
     const functionKeyToNodeId = new Map<string, string>();

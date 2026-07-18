@@ -21,6 +21,16 @@ export default function RootLayout({
   return (
     <html lang="no">
       <head>
+        {/* Applies a saved theme choice (see useTheme in ScenarioApp.tsx)
+            before first paint, so returning visitors on "lys"/"terminal"
+            don't see a flash of the default dark "graf" theme. */}
+        <script
+          dangerouslySetInnerHTML={{
+            __html:
+              "(function(){try{var t=localStorage.getItem('konsekvensnettverk-theme');" +
+              "if(t==='lys'||t==='terminal')document.documentElement.dataset.theme=t;}catch(e){}})();",
+          }}
+        />
         {/* Icon font only - Arial/system text font stays per the note above.
             Self-hosting via next/font doesn't cover Material Symbols' variable
             fill/weight axes cleanly, so this is a plain stylesheet link. This

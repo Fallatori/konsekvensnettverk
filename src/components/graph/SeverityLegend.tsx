@@ -1,5 +1,5 @@
 import { CONSEQUENCE_LABELS } from "@/lib/calc/mappings";
-import { severityGlyphPoints, severityMarkerFor } from "@/lib/ui/severityMarker";
+import { severityGlyphPoints, severityMarkerFor } from "@/lib/styles/tokens";
 
 const CATEGORY_LABEL_NO: Record<string, string> = {
   "svært små": "Svært små",

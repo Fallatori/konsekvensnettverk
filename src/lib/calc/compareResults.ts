@@ -76,18 +76,6 @@ function samfunnsfunksjonNodes(result: RecomputeResult) {
   return result.nodes.filter((node) => !node.isHendelse);
 }
 
-/** Baseline = each node's scenario-authored default; current = its final
- * totalConsequenceValue from the same /recompute response. */
-export function compareToOriginal(result: RecomputeResult): ComparisonResult {
-  const baseline = new Map<string, ValueEntry>();
-  const current = new Map<string, ValueEntry>();
-  for (const node of samfunnsfunksjonNodes(result)) {
-    baseline.set(node.id, { label: node.label, value: node.originalConsequenceValue });
-    current.set(node.id, { label: node.label, value: node.totalConsequenceValue });
-  }
-  return compareResults(baseline, current);
-}
-
 /** Baseline = the previous /recompute response; current = the new one - used
  * for the edit-impact summary ("as a result of this change"). */
 export function compareToPrevious(

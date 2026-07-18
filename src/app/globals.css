@@ -1,8 +1,7 @@
 :root {
   /* Oslo kommune's official color palette - https://designmanual.oslo.kommune.no/farger
-     Always-dark theme (confirmed): the app used to also offer a light mode,
-     switched by prefers-color-scheme, but this dark "dependency graph"
-     aesthetic is now the only theme. */
+     Referenced by the "graf" theme below (the app's original always-dark
+     look) and available to every theme as raw swatches. */
   --oslo-mork-bla: #2a2859;
   --oslo-bla: #6fe9ff;
   --oslo-lys-bla: #b3f5ff;
@@ -14,7 +13,14 @@
   --oslo-gul: #f9c66b;
   --oslo-mork-beige: #d0bfae;
   --oslo-lys-beige: #f8f0dd;
+}
 
+/* Three selectable visual styles, switched via [data-theme] on <html> (see
+   useTheme in ScenarioApp.tsx). Each defines the same token set so every
+   component below - built entirely on these vars - re-skins for free.
+   "graf" is the default/original look. */
+:root,
+[data-theme="graf"] {
   --background: #050b18;
   --foreground: #e7ecf7;
   --accent: var(--oslo-bla);
@@ -36,16 +42,85 @@
   --control-muted: #8f9ab3;
   --panel-border: rgba(111, 233, 255, 0.12);
   --glass-bg: rgba(12, 24, 48, 0.72);
-  /* Graph edge "wire" color - severity now lives in the edge's midpoint
-     marker (shape + color), not the line itself. Kept as a literal in
-     FloatingEdge.tsx too since SVG presentation attributes don't reliably
-     resolve CSS custom properties - keep both in sync if this changes. */
-  --edge-wire: rgba(231, 236, 247, 0.28);
+  /* Graph edge "wire" color - severity lives in the edge's midpoint marker
+     (shape + color), not the line itself. Also read directly via var() in
+     FloatingEdge.tsx so it repaints on theme switch. Fully opaque - edge
+     translucency is applied uniformly via EDGE_BASE_OPACITY in
+     FloatingEdge.tsx instead of being baked into this color, so overlapping
+     edges compound predictably regardless of connection style. */
+  --edge-wire: #e7ecf7;
+  --edit-impact-color: var(--oslo-lys-bla);
+  --grid-dot: rgba(231, 236, 247, 0.06);
+  --body-font: Arial, Helvetica, sans-serif;
+  color-scheme: dark;
+}
+
+/* "lys" - light, card-based SaaS look (white panels, blue accent, crisp
+   borders instead of glow/blur). */
+[data-theme="lys"] {
+  --background: #f4f5f7;
+  --foreground: #1a1a2e;
+  --accent: #2563eb;
+  --accent-soft: rgba(37, 99, 235, 0.1);
+  --accent-glow: rgba(37, 99, 235, 0.35);
+
+  --surface: #ffffff;
+  --surface-container-lowest: #ffffff;
+  --surface-container-low: #f8f9fb;
+  --surface-container: #f1f3f6;
+  --surface-container-high: #ffffff;
+  --surface-container-highest: #eef0f4;
+  --surface-bright: #e5e8ee;
+
+  --topbar-bg: rgba(255, 255, 255, 0.92);
+  --topbar-border: #e5e7eb;
+  --control-track: #eef0f4;
+  --control-border: #d8dce3;
+  --control-muted: #6b7280;
+  --panel-border: #e2e5eb;
+  --glass-bg: #ffffff;
+  /* Opaque - see the comment on "graf"'s --edge-wire above. */
+  --edge-wire: #6b7280;
+  --edit-impact-color: #1d4ed8;
+  --grid-dot: rgba(26, 26, 46, 0.07);
+  --body-font: Arial, Helvetica, sans-serif;
+  color-scheme: light;
+}
+
+/* "terminal" - deep-black neon/HUD look (monospace, stronger glow). */
+[data-theme="terminal"] {
+  --background: #03050b;
+  --foreground: #d7f6ff;
+  --accent: #22e8ff;
+  --accent-soft: rgba(34, 232, 255, 0.14);
+  --accent-glow: rgba(34, 232, 255, 0.65);
+
+  --surface: #060a13;
+  --surface-container-lowest: #03050b;
+  --surface-container-low: #080d18;
+  --surface-container: #0c1220;
+  --surface-container-high: #121a2c;
+  --surface-container-highest: #182238;
+  --surface-bright: #1f2c48;
+
+  --topbar-bg: rgba(3, 5, 11, 0.9);
+  --topbar-border: rgba(34, 232, 255, 0.25);
+  --control-track: #0c1220;
+  --control-border: rgba(34, 232, 255, 0.25);
+  --control-muted: #6f83a8;
+  --panel-border: rgba(34, 232, 255, 0.22);
+  --glass-bg: rgba(6, 10, 19, 0.78);
+  /* Opaque - see the comment on "graf"'s --edge-wire above. */
+  --edge-wire: #7ea3c4;
+  --edit-impact-color: #7cf9ff;
+  --grid-dot: rgba(34, 232, 255, 0.09);
+  --body-font:
+    ui-monospace, SFMono-Regular, Menlo, Consolas, "Liberation Mono", monospace;
+  color-scheme: dark;
 }
 
 html {
   height: 100%;
-  color-scheme: dark;
 }
 
 html,
@@ -62,10 +137,14 @@ body {
   background: var(--background);
   /* Oslo Sans is Oslo kommune's own typeface and is proprietary to the
      municipality and its partners - their design manual states Arial is the
-     official substitute where Oslo Sans is unavailable. */
-  font-family: Arial, Helvetica, sans-serif;
+     official substitute where Oslo Sans is unavailable. The "terminal" theme
+     overrides --body-font to a monospace stack instead. */
+  font-family: var(--body-font);
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
+  transition:
+    background-color 200ms ease,
+    color 200ms ease;
 }
 
 * {
@@ -253,7 +332,7 @@ a {
   flex: 1;
   min-width: 0;
   background-color: var(--background);
-  background-image: radial-gradient(circle, rgba(231, 236, 247, 0.06) 1px, transparent 1px);
+  background-image: radial-gradient(circle, var(--grid-dot) 1px, transparent 1px);
   background-size: 26px 26px;
 }
 
@@ -279,6 +358,74 @@ a {
 .graphArea .react-flow__attribution {
   background: transparent;
   color: var(--control-muted);
+}
+
+/* "flow" connection style (see EdgeStyleContext.tsx / FloatingEdge.tsx) -
+   marching-ants dash animated along the path, source -> target. */
+@keyframes edgeFlowDash {
+  to {
+    stroke-dashoffset: -24;
+  }
+}
+
+.edgeFlow {
+  animation: edgeFlowDash 900ms linear infinite;
+}
+
+/* Zone "swim lane" backgrounds (see ZoneBackgroundNode.tsx) - divides the
+   canvas into hendelse -> direkte påvirkning -> indirekte påvirkning. Same
+   three-tier visual language in every theme: the origin lane gets an accent
+   tint, the direct-impact lane a neutral tint, and the indirect lane a
+   hatched texture (its nodes are synthesized, not authored, so the lane
+   itself should read as "inferred" rather than as solid fact). Each theme
+   only supplies its own color via the existing --accent/--surface-*
+   tokens - no per-theme overrides needed here. */
+.zoneBackground {
+  box-sizing: border-box;
+  width: 100%;
+  height: 100%;
+  padding: 0.85rem 1.1rem;
+  display: flex;
+  align-items: flex-start;
+  pointer-events: none;
+}
+
+.zoneBackgroundLabel {
+  font-size: 0.72rem;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--control-muted);
+}
+
+.zoneBackgroundDivider {
+  border-right: 1px dashed var(--panel-border);
+}
+
+.zoneBackgroundFirst {
+  border-top-left-radius: 0.85rem;
+  border-bottom-left-radius: 0.85rem;
+}
+
+.zoneBackgroundLast {
+  border-top-right-radius: 0.85rem;
+  border-bottom-right-radius: 0.85rem;
+}
+
+.zoneBackground--hendelse {
+  background: color-mix(in srgb, var(--accent) 12%, transparent);
+}
+
+.zoneBackground--direkte {
+  background: color-mix(in srgb, var(--surface-container-highest) 55%, transparent);
+}
+
+.zoneBackground--indirekte {
+  background: repeating-linear-gradient(
+    135deg,
+    color-mix(in srgb, var(--surface-container-highest) 60%, transparent) 0 10px,
+    transparent 10px 20px
+  );
 }
 
 .severityLegend {
@@ -476,7 +623,7 @@ a {
   margin-top: 0.75rem;
   padding: 0.6rem 0.75rem;
   background: var(--accent-soft);
-  color: var(--oslo-lys-bla);
+  color: var(--edit-impact-color);
   border: 1px solid var(--panel-border);
   border-radius: 0.5rem;
   font-size: 0.85rem;
@@ -485,6 +632,79 @@ a {
 .hint {
   font-size: 0.85rem;
   color: var(--control-muted);
+}
+
+.overviewBackground {
+  font-size: 0.85rem;
+  color: var(--control-muted);
+}
+
+.overviewObservations {
+  margin: 0.5rem 0 0;
+  padding-left: 1.1rem;
+  font-size: 0.9rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+}
+
+.overviewObservations li {
+  list-style: disc;
+}
+
+/* Positioned by the nearest positioned ancestor (.valueList dt or
+   .tooltipAnchor), NOT by .infoTooltip itself - the icon's own x position
+   shifts with label text length, which would make the bubble drift and clip
+   against the narrow side panel if anchored to the icon directly. */
+.infoTooltip {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  margin-left: 0.3rem;
+  color: var(--control-muted);
+  cursor: help;
+  outline: none;
+  vertical-align: middle;
+}
+
+.valueList dt,
+.tooltipAnchor {
+  position: relative;
+}
+
+.infoTooltip .material-symbols-outlined {
+  font-size: 15px;
+}
+
+.infoTooltip:hover,
+.infoTooltip:focus-visible {
+  color: var(--accent);
+}
+
+.infoTooltipBubble {
+  display: none;
+  position: absolute;
+  bottom: calc(100% + 0.4rem);
+  right: 0;
+  width: max-content;
+  max-width: 220px;
+  padding: 0.6rem 0.75rem;
+  background: var(--surface-container-high);
+  border: 1px solid var(--panel-border);
+  border-radius: 0.5rem;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.35);
+  color: var(--foreground);
+  font-size: 0.78rem;
+  font-weight: 400;
+  line-height: 1.45;
+  text-align: left;
+  white-space: normal;
+  z-index: 20;
+}
+
+.infoTooltip:hover .infoTooltipBubble,
+.infoTooltip:focus-visible .infoTooltipBubble {
+  display: block;
 }
 
 .comparisonTable {
@@ -515,4 +735,198 @@ a {
 
 .comparisonTable tbody tr:nth-child(odd) {
   background: rgba(255, 255, 255, 0.03);
+}
+
+/* Card-style graph nodes - "lys" and "terminal" themes replace the "graf"
+   circular gauge dial with a rectangular card (see GaugeNode.tsx). Sizing
+   here must stay roughly in sync with THEME_NODE_LAYOUT in
+   lib/styles/tokens.ts, which drives the force layout's column/row spacing and
+   collision radius from the same numbers. */
+.cardNode {
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+  padding: 0.65rem 0.8rem;
+  background: var(--surface-container-high);
+  border: 1px solid var(--panel-border);
+  border-top: 3px solid var(--accent);
+  border-radius: 0.65rem;
+  box-shadow: 0 6px 18px rgba(0, 0, 0, 0.1);
+  cursor: pointer;
+}
+
+.cardNodePill {
+  display: inline-flex;
+  align-self: flex-start;
+  padding: 0.15rem 0.5rem;
+  font-size: 0.65rem;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  border-radius: 999px;
+}
+
+.cardNodeLabel {
+  font-size: 0.85rem;
+  font-weight: 700;
+  color: var(--foreground);
+  line-height: 1.25;
+}
+
+.cardNodeSeverity {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+  margin-top: 0.1rem;
+}
+
+.cardNodeSeverityTrack {
+  width: 100%;
+  height: 6px;
+  border-radius: 999px;
+  background: var(--control-track);
+  border: 1px solid var(--control-border);
+  overflow: hidden;
+}
+
+.cardNodeSeverityFill {
+  height: 100%;
+  border-radius: 999px;
+}
+
+.cardNodeSeverityLabel {
+  font-size: 0.68rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+}
+
+/* "lys" hendelse (root) card - a solid near-black card against the light
+   board, mirroring the reference dashboard's dark "outcome" card. */
+.cardNodeHendelse {
+  background: #14161f;
+  border-top-color: #14161f;
+}
+
+.cardNodePillHendelse {
+  background: rgba(255, 255, 255, 0.14);
+  color: #fff;
+}
+
+.cardNodeLabelHendelse {
+  color: #fff;
+}
+
+/* "terminal" theme - dark HUD card, percentage ring on the left, status text
+   on the right, laid out horizontally instead of stacked. */
+.cardNodeTerminal {
+  flex-direction: row;
+  align-items: center;
+  gap: 0.7rem;
+  border-top: 1px solid var(--panel-border);
+  box-shadow: 0 0 18px var(--accent-soft);
+}
+
+.cardNodeTerminalCritical {
+  border-color: rgba(239, 68, 68, 0.55);
+  box-shadow: 0 0 22px rgba(239, 68, 68, 0.35);
+}
+
+.cardNodeTerminalRing {
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.cardNodeTerminalRoot {
+  width: 30px;
+  height: 30px;
+  border-radius: 50%;
+}
+
+.cardNodeTerminalText {
+  display: flex;
+  flex-direction: column;
+  gap: 0.15rem;
+  min-width: 0;
+}
+
+.cardNodeTerminalLabel {
+  font-size: 0.85rem;
+  font-weight: 700;
+  color: var(--foreground);
+  line-height: 1.2;
+}
+
+.cardNodeTerminalStatus {
+  font-size: 0.62rem;
+  font-weight: 600;
+  letter-spacing: 0.05em;
+  color: var(--control-muted);
+}
+
+/* Per-theme panel/chrome distinctions beyond color - "lys" turns the
+   stat list into bordered tiles (like the reference's Node Inspector stat
+   boxes) and a solid dark CTA button; "terminal" turns it into an
+   uppercase-monospace HUD readout. "graf" is untouched (its .valueList/
+   .logoutButton base rules above are the whole story). */
+[data-theme="lys"] .logoutButton {
+  background: #14161f;
+  color: #fff;
+  border-color: #14161f;
+}
+
+[data-theme="lys"] .logoutButton:hover {
+  background: #262a3a;
+  border-color: #262a3a;
+}
+
+[data-theme="lys"] .valueList,
+[data-theme="terminal"] .valueList {
+  display: flex;
+  flex-direction: column;
+  gap: 0.4rem;
+}
+
+[data-theme="lys"] .valueList dt,
+[data-theme="lys"] .valueList dd,
+[data-theme="terminal"] .valueList dt,
+[data-theme="terminal"] .valueList dd {
+  display: flex;
+  align-items: center;
+  background: var(--surface-container-low);
+  border: 1px solid var(--panel-border);
+  padding: 0.4rem 0.65rem;
+  text-align: left;
+}
+
+[data-theme="lys"] .valueList dt,
+[data-theme="terminal"] .valueList dt {
+  border-radius: 0.5rem 0.5rem 0 0;
+  border-bottom: none;
+  font-size: 0.72rem;
+}
+
+[data-theme="lys"] .valueList dd,
+[data-theme="terminal"] .valueList dd {
+  border-radius: 0 0 0.5rem 0.5rem;
+  justify-content: flex-end;
+  font-size: 0.95rem;
+}
+
+[data-theme="terminal"] .panel h2,
+[data-theme="terminal"] .severityLegendTitle,
+[data-theme="terminal"] .controlLabel {
+  letter-spacing: 0.08em;
+}
+
+[data-theme="terminal"] .valueList dt {
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+[data-theme="terminal"] .valueList dd {
+  color: var(--accent);
+  font-weight: 700;
 }

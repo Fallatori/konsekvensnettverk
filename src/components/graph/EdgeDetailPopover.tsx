@@ -1,5 +1,5 @@
 import type { ComputedEdge, ComputedNode } from "@/lib/calc/recompute";
-import { consequenceLabelForIndirectPoints } from "@/lib/calc/mappings";
+import { CONSEQUENCE_LABELS, consequenceLabelForIndirectPoints } from "@/lib/calc/mappings";
 
 export function EdgeDetailPopover({
   edge,
@@ -13,9 +13,12 @@ export function EdgeDetailPopover({
   const source = nodes.find((n) => n.id === edge.parentId);
   const target = nodes.find((n) => n.id === edge.childId);
 
+  // Direct: connectionLevel is the target's time-adjusted severity, as the
+  // ConsequenceLabel taxonomy's ordinal (0 "ingen" .. 5 "svært store") - see
+  // ComputedEdge.connectionLevel in lib/calc/recompute.ts.
   const strength =
     edge.kind === "DIRECT"
-      ? `${edge.connectionLevel} (styrke 1-5)`
+      ? (CONSEQUENCE_LABELS[edge.connectionLevel] ?? "ingen")
       : consequenceLabelForIndirectPoints(edge.connectionLevel);
 
   return (
