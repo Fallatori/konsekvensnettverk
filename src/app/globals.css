@@ -634,6 +634,52 @@ a {
   color: var(--control-muted);
 }
 
+/* Authored rich text (definition / description in domainData.json), rendered
+   by components/RichText.tsx. Everything is a <span> so the markup stays
+   valid inside the header tooltip - the display roles come from here, not
+   from block-level tags. */
+.richText {
+  display: block;
+}
+
+.richTextParagraph,
+.richTextList {
+  display: block;
+}
+
+.richTextParagraph + .richTextParagraph,
+.richTextParagraph + .richTextList,
+.richTextList + .richTextParagraph {
+  margin-top: 0.5em;
+}
+
+.richTextItem {
+  display: block;
+  position: relative;
+  padding-left: 0.9em;
+}
+
+.richTextItem::before {
+  content: "•";
+  position: absolute;
+  left: 0.1em;
+  color: var(--control-muted);
+}
+
+.richTextItem + .richTextItem {
+  margin-top: 0.15em;
+}
+
+/* Caption above the node's scenario-specific description, separating it from
+   the metadata lines that precede it. */
+.descriptionLabel {
+  margin-top: 0.6rem;
+  font-size: 0.7rem;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  font-weight: 700;
+}
+
 .overviewBackground {
   font-size: 0.85rem;
   color: var(--control-muted);
@@ -702,9 +748,28 @@ a {
   z-index: 20;
 }
 
+/* Opens downwards instead - for anchors with no room above them, such as the
+   panel header at the top of the scrollable .sidePanels column. Anchored to
+   the left edge, since a header label starts at the panel's left margin. */
+.infoTooltipBubbleBelow {
+  bottom: auto;
+  top: calc(100% + 0.4rem);
+  right: auto;
+  left: 0;
+  max-width: 260px;
+}
+
 .infoTooltip:hover .infoTooltipBubble,
 .infoTooltip:focus-visible .infoTooltipBubble {
   display: block;
+}
+
+/* The header's h2 doubles as the tooltip anchor, so the icon has to sit on
+   the text baseline rather than stretch the flex row. */
+.panelHeader h2.tooltipAnchor {
+  display: inline-flex;
+  align-items: center;
+  min-width: 0;
 }
 
 .comparisonTable {

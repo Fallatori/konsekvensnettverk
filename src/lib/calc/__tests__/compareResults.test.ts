@@ -8,6 +8,7 @@ function node(overrides: Partial<RecomputeResult["nodes"][number]>): RecomputeRe
     functionKey: "N",
     label: "N",
     description: "",
+    definition: null,
     isHendelse: false,
     isDirect: true,
     subtype: "funksjon",

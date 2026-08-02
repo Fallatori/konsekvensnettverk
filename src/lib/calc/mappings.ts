@@ -78,6 +78,14 @@ export const CONSEQUENCE_VALUE: Record<ConsequenceLabel, number> = {
   "svært store": 100,
 };
 
+/** An edge's connection level is never authored - it is always the severity
+ * category's ordinal position in CONSEQUENCE_LABELS (0 "ingen" .. 5 "svært
+ * store"). Used by the seed script for the persisted baseline and by
+ * recompute for a direct edge's rendered strength, so both agree. */
+export function connectionLevelForCategory(category: ConsequenceLabel): number {
+  return CONSEQUENCE_LABELS.indexOf(category);
+}
+
 export const CONSEQUENCE_LABEL_BY_PRISMA: Record<PrismaConsequenceCategory, ConsequenceLabel> = {
   INGEN: "ingen",
   SVAERT_SMAA: "svært små",

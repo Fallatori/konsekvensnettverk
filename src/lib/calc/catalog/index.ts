@@ -1,4 +1,11 @@
-export type { CatalogEntry, FunctionalityTable, IndirectImpactRow, TimeframeDays } from "@/lib/calc/catalog/types";
+export type {
+  CatalogEntry,
+  CatalogEntryType,
+  CatalogSubtypeLabel,
+  FunctionalityTable,
+  IndirectImpactRow,
+  TimeframeDays,
+} from "@/lib/calc/catalog/types";
 export { TIMEFRAME_DAYS } from "@/lib/calc/catalog/types";
 
 /** The catalog itself is data-driven - see src/lib/data/domainData.ts, the

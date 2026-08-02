@@ -2,8 +2,8 @@ import { FUNCTION_KEYS as REAL_FUNCTION_KEYS, getCatalogEntry as getRealCatalogE
 import type { CatalogEntry, TimeframeDays } from "@/lib/calc/catalog/types";
 import {
   CONSEQUENCE_LABEL_BY_PRISMA,
-  CONSEQUENCE_LABELS,
   CONSEQUENCE_VALUE,
+  connectionLevelForCategory,
   nearestConsequenceLabel,
   type ConsequenceLabel,
   type NodeSubtype,
@@ -27,9 +27,9 @@ export type DirectEdgeInput = {
   id: string;
   parentId: string;
   childId: string;
-  /** Scenario-authored starting strength - no longer used as the rendered
-   * default (see ComputedEdge.connectionLevel), kept only as DB-persisted
-   * authoring metadata and as the pre-override baseline. */
+  /** The seeded baseline strength, derived at seed time from the target's
+   * base category - not used as the rendered default (see
+   * ComputedEdge.connectionLevel), kept only as DB-persisted metadata. */
   connectionLevel: number;
 };
 
@@ -64,7 +64,12 @@ export type ComputedNode = {
   id: string;
   functionKey: string | null;
   label: string;
+  /** The scenario-authored text for this node ("why is it hit"), empty for
+   * synthesized indirect-only nodes. */
   description: string;
+  /** The catalog's general definition of the function (domainData.json),
+   * independent of any scenario - null for the hendelse node. */
+  definition: string | null;
   isHendelse: boolean;
   /** false for synthesized indirect-only nodes (no persisted Node row). */
   isDirect: boolean;
@@ -242,6 +247,7 @@ export function recompute(input: RecomputeInput, options: RecomputeOptions = {})
       functionKey: null,
       label: input.hendelseLabel,
       description: input.hendelseDescription,
+      definition: null,
       isHendelse: true,
       isDirect: true,
       subtype: input.hendelseSubtype,
@@ -268,6 +274,7 @@ export function recompute(input: RecomputeInput, options: RecomputeOptions = {})
       functionKey: entry.functionKey,
       label: entry.node!.label,
       description: entry.node!.description,
+      definition: catalogLookup(entry.functionKey).definition,
       isHendelse: false,
       isDirect: true,
       subtype: entry.node!.subtype,
@@ -288,6 +295,7 @@ export function recompute(input: RecomputeInput, options: RecomputeOptions = {})
       functionKey: entry.functionKey,
       label: catalogLookup(entry.functionKey).label,
       description: "",
+      definition: catalogLookup(entry.functionKey).definition,
       isHendelse: false,
       isDirect: false,
       subtype: catalogLookup(entry.functionKey).subtype,
@@ -314,7 +322,7 @@ export function recompute(input: RecomputeInput, options: RecomputeOptions = {})
       parentId: edge.parentId,
       childId: edge.childId,
       kind: "DIRECT" as const,
-      connectionLevel: CONSEQUENCE_LABELS.indexOf(targetCategory),
+      connectionLevel: connectionLevelForCategory(targetCategory),
     };
   });
 

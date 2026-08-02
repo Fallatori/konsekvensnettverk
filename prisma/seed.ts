@@ -7,6 +7,7 @@ import {
   PRISMA_LIKELIHOOD_BY_LABEL,
   PRISMA_NODE_SUBTYPE_BY_LABEL,
   CONSEQUENCE_VALUE,
+  connectionLevelForCategory,
 } from "../src/lib/calc/mappings";
 import { getCatalogEntry } from "../src/lib/calc/catalog";
 import { SCENARIO_DEFINITIONS, DEV_SEED_USERS, type ScenarioDefinition } from "../src/lib/data/domainData";
@@ -93,7 +94,9 @@ async function seedScenario(teamId: string, definition: ScenarioDefinition) {
         scenarioId: scenario.id,
         parentId: hendelse.id,
         childId: node.id,
-        connectionLevel: hit.connectionLevel,
+        // Derived from the hit's category, never authored - see
+        // connectionLevelForCategory in lib/calc/mappings.ts.
+        connectionLevel: connectionLevelForCategory(hit.category),
       },
     });
   }

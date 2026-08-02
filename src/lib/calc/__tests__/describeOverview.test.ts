@@ -8,6 +8,7 @@ function node(overrides: Partial<ComputedNode>): ComputedNode {
     functionKey: "N",
     label: "N",
     description: "",
+    definition: null,
     isHendelse: false,
     isDirect: true,
     subtype: "funksjon",

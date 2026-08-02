@@ -128,7 +128,10 @@ model Edge {
   scenarioId      String
   parentId        String
   childId         String
-  connectionLevel Int // 1-5, drives line width
+  // Seeded baseline only - derived from the child's base consequence
+  // category (0 "ingen" .. 5 "svært store"), never authored by hand. The
+  // rendered strength is recomputed per request, see lib/calc/recompute.ts.
+  connectionLevel Int
 
   scenario Scenario @relation(fields: [scenarioId], references: [id], onDelete: Cascade)
   parent   Node     @relation("ParentEdges", fields: [parentId], references: [id], onDelete: Cascade)

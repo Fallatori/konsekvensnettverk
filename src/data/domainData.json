@@ -1,12 +1,14 @@
 {
   "_comment": "Single input point for all domain data - read and validated by src/lib/data/domainData.ts. Every other module (the catalog, the DB seed script) consumes it through that loader, never this file directly. Three sections below: FUNCTIONS (the societal-function catalog), SCENARIOS (DB seed data), DEV_SEED_USER (dev login). JSON has no comment syntax, so '_comment'/'_section_*' keys are used as human-readable dividers - the loader strips them.",
-  "_section_functions": "===== FUNCTIONS ===== The catalog of societal functions (\"kritiske samfunnsfunksjoner\"). Each entry is self-contained - no shared/default table. functionalityTable: this function's OWN restoration curve - percent still functioning, keyed by [own category][day 1|3|7|30|90]. indirectImpactRow: this function's OWN impact-on-others matrix - keyed by [own category][every OTHER functionKey] -> the category it induces there. Both are still placeholder values (identical curve, naive self-mirroring rule) - TODO: replace with real data per function, and confirm each subtype.",
+  "_section_functions": "===== FUNCTIONS ===== The catalog of societal functions (\"kritiske samfunnsfunksjoner\"). Each entry is self-contained - no shared/default table. type: \"funksjon\" (a societal function) or \"fare\" (a hazard/event entry). subtype: the DSB samfunnsverdi this entry belongs to - \"Styringsevne og suverenitet\", \"Befolkningens sikkerhet\" or \"Samfunnets funksjonalitet\" (the loader maps these to the internal short NodeSubtype keys that drive node colors). definition: prose definition of what the function covers, shown on hover behind the info icon in the node panel header. Text fields marked as rich text (\"definition\" here, \"description\" under SCENARIOS) support a small Markdown subset rendered by src/components/RichText.tsx: a blank line (\\n\\n) starts a new paragraph, a single \\n is a line break, a line starting with \"- \" is a bullet point, **text** is bold and *text* is italic. Plain text without markers renders unchanged. functionalityTable: this function's OWN restoration curve - percent still functioning, keyed by [own category][day 1|3|7|30|90]. indirectImpactRow: this function's OWN impact-on-others matrix - keyed by [own category][every OTHER functionKey] -> the category it induces there. functionalityTable and indirectImpactRow are still placeholder values (identical curve, naive self-mirroring rule) - TODO: replace with real data per function.",
   "functions": [
     {
       "_comment": "1/18 - Styring og kriseledelse",
       "functionKey": "STYRING_OG_KRISELEDELSE",
       "label": "Styring og kriseledelse",
-      "subtype": "stabilitet",
+      "type": "funksjon",
+      "subtype": "Styringsevne og suverenitet",
+      "definition": "Evnen til å opprettholde politisk og administrativ styring og til å lede håndteringen av uønskede hendelser. Omfatter regjeringens, departementenes, fylkeskommunenes og kommunenes beslutnings- og samordningsevne, kriseorganisasjon, situasjonsforståelse og krisekommunikasjon mot befolkningen.",
       "functionalityTable": {
         "ingen": {
           "1": 100,
@@ -172,7 +174,9 @@
       "_comment": "2/18 - Helse, omsorg og sosiale tjenester",
       "functionKey": "HELSE_OMSORG_OG_SOSIALE_TJENESTER",
       "label": "Helse, omsorg og sosiale tjenester",
-      "subtype": "befolkning",
+      "type": "funksjon",
+      "subtype": "Befolkningens sikkerhet",
+      "definition": "Evnen til å yte nødvendige helse-, omsorgs- og sosialtjenester til befolkningen. Omfatter spesialisthelsetjenesten og den kommunale helse- og omsorgstjenesten, akuttmedisinsk beredskap, smittevern, legemiddel- og materiellforsyning, samt tjenester til sårbare grupper.",
       "functionalityTable": {
         "ingen": {
           "1": 100,
@@ -338,7 +342,9 @@
       "_comment": "3/18 - Redningstjeneste",
       "functionKey": "REDNINGSTJENESTE",
       "label": "Redningstjeneste",
-      "subtype": "befolkning",
+      "type": "funksjon",
+      "subtype": "Befolkningens sikkerhet",
+      "definition": "Evnen til å redde mennesker fra død eller skade som følge av akutte ulykkes- eller faresituasjoner. Omfatter nødetatene, hovedredningssentralene, brann- og redningsvesenet, ambulansetjenesten og de frivillige redningsressursene, inkludert nødmeldingstjenesten og søk- og redningskapasitet til lands og til sjøs.",
       "functionalityTable": {
         "ingen": {
           "1": 100,
@@ -504,7 +510,9 @@
       "_comment": "4/18 - Transport",
       "functionKey": "TRANSPORT",
       "label": "Transport",
-      "subtype": "funksjon",
+      "type": "funksjon",
+      "subtype": "Samfunnets funksjonalitet",
+      "definition": "Evnen til å opprettholde forflytning av personer og gods. Omfatter veg, jernbane, luftfart og sjøtransport med tilhørende infrastruktur, terminaler, drivstofforsyning og trafikkstyring, og er en forutsetning for forsyning, beredskap og evakuering.",
       "functionalityTable": {
         "ingen": {
           "1": 100,
@@ -670,7 +678,9 @@
       "_comment": "5/18 - Lov og orden",
       "functionKey": "LOV_OG_ORDEN",
       "label": "Lov og orden",
-      "subtype": "stabilitet",
+      "type": "funksjon",
+      "subtype": "Styringsevne og suverenitet",
+      "definition": "Evnen til å opprettholde offentlig ro og orden, alminnelig trygghet og rettshåndhevelse. Omfatter politiets ordens-, etterforsknings- og beredskapsoppgaver, påtalemyndighet, domstoler og kriminalomsorg, samt tilliten til at rettsstaten fungerer.",
       "functionalityTable": {
         "ingen": {
           "1": 100,
@@ -836,7 +846,9 @@
       "_comment": "6/18 - Kulturmiljø",
       "functionKey": "KULTURMILJO",
       "label": "Kulturmiljø",
-      "subtype": "befolkning",
+      "type": "funksjon",
+      "subtype": "Befolkningens sikkerhet",
+      "definition": "Evnen til å bevare kulturminner, kulturmiljøer og kulturarv av nasjonal eller lokal verdi. Omfatter fredede og verneverdige bygninger, arkeologiske kulturminner, arkiver, museums- og samlingsverdier - verdier som i stor grad er uerstattelige når de først går tapt.",
       "functionalityTable": {
         "ingen": {
           "1": 100,
@@ -1002,7 +1014,9 @@
       "_comment": "7/18 - Natur og miljø",
       "functionKey": "NATUR_OG_MILJO",
       "label": "Natur og miljø",
-      "subtype": "befolkning",
+      "type": "funksjon",
+      "subtype": "Befolkningens sikkerhet",
+      "definition": "Evnen til å bevare naturmangfold og et miljø uten alvorlig forurensning. Omfatter økosystemer, sårbare arter og leveområder, vann-, jord- og luftkvalitet, samt evnen til å håndtere akutt forurensning og langsiktige miljøskader.",
       "functionalityTable": {
         "ingen": {
           "1": 100,
@@ -1168,7 +1182,9 @@
       "_comment": "8/18 - Oppvekst og utdanning",
       "functionKey": "OPPVEKST_OG_UTDANNING",
       "label": "Oppvekst og utdanning",
-      "subtype": "befolkning",
+      "type": "funksjon",
+      "subtype": "Befolkningens sikkerhet",
+      "definition": "Evnen til å opprettholde et trygt oppvekstmiljø og et fungerende utdanningsløp. Omfatter barnehager, grunnskole, videregående opplæring, høyere utdanning og barnevern, og har betydning både for barn og unge direkte og for foresattes mulighet til å være i arbeid.",
       "functionalityTable": {
         "ingen": {
           "1": 100,
@@ -1334,7 +1350,9 @@
       "_comment": "9/18 - Eiendom",
       "functionKey": "EIENDOM",
       "label": "Eiendom",
-      "subtype": "funksjon",
+      "type": "funksjon",
+      "subtype": "Samfunnets funksjonalitet",
+      "definition": "Evnen til å opprettholde bygninger, boliger og eiendomsverdier, og til å sikre befolkningen tak over hodet. Omfatter boligmasse, næringsbygg og offentlige bygg med tilhørende tekniske installasjoner, samt eiendomsregistre og forsikringsordninger.",
       "functionalityTable": {
         "ingen": {
           "1": 100,
@@ -1500,7 +1518,9 @@
       "_comment": "10/18 - Vann og avløp",
       "functionKey": "VANN_OG_AVLOP",
       "label": "Vann og avløp",
-      "subtype": "funksjon",
+      "type": "funksjon",
+      "subtype": "Samfunnets funksjonalitet",
+      "definition": "Evnen til å levere nok og trygt drikkevann og til å håndtere avløpsvann. Omfatter vannkilder, vannbehandling, ledningsnett, høydebasseng, pumpestasjoner og renseanlegg, og er kritisk for både liv og helse og for hygieniske forhold i samfunnet.",
       "functionalityTable": {
         "ingen": {
           "1": 100,
@@ -1666,7 +1686,9 @@
       "_comment": "11/18 - Kraftforsyning",
       "functionKey": "KRAFTFORSYNING",
       "label": "Kraftforsyning",
-      "subtype": "funksjon",
+      "type": "funksjon",
+      "subtype": "Samfunnets funksjonalitet",
+      "definition": "Evnen til å produsere, overføre og distribuere elektrisk kraft til sluttbrukere. Omfatter kraftproduksjon, sentral- og distribusjonsnett, driftssentraler og reservekraft, og er den mest gjennomgripende avhengigheten for nær alle andre samfunnsfunksjoner.",
       "functionalityTable": {
         "ingen": {
           "1": 100,
@@ -1832,7 +1854,9 @@
       "_comment": "12/18 - Forsvar",
       "functionKey": "FORSVAR",
       "label": "Forsvar",
-      "subtype": "stabilitet",
+      "type": "funksjon",
+      "subtype": "Styringsevne og suverenitet",
+      "definition": "Evnen til å forsvare nasjonal suverenitet, territoriell integritet og politisk handlefrihet mot ytre trusler. Omfatter Forsvarets operative kapasiteter, etterretning, mottak av allierte forsterkninger og totalforsvarets sivil-militære samarbeid.",
       "functionalityTable": {
         "ingen": {
           "1": 100,
@@ -1998,7 +2022,9 @@
       "_comment": "13/18 - Elektroniske kommunikasjonsnett og tjenester",
       "functionKey": "ELEKTRONISKE_KOMMUNIKASJONSNETT_OG_TJENESTER",
       "label": "Elektroniske kommunikasjonsnett og tjenester",
-      "subtype": "funksjon",
+      "type": "funksjon",
+      "subtype": "Samfunnets funksjonalitet",
+      "definition": "Evnen til å opprettholde elektronisk kommunikasjon mellom mennesker, virksomheter og systemer. Omfatter fastnett, mobilnett, bredbånd, transportnett, datasentre og Nødnett, og er en forutsetning for nødmelding, kriseledelse og digitale tjenester.",
       "functionalityTable": {
         "ingen": {
           "1": 100,
@@ -2164,7 +2190,9 @@
       "_comment": "14/18 - Renovasjon",
       "functionKey": "RENOVASJON",
       "label": "Renovasjon",
-      "subtype": "funksjon",
+      "type": "funksjon",
+      "subtype": "Samfunnets funksjonalitet",
+      "definition": "Evnen til å samle inn, transportere og behandle avfall. Omfatter husholdnings- og næringsavfall, farlig avfall og deponi-/forbrenningskapasitet, og har direkte betydning for hygiene, smittevern og forurensning ved langvarig bortfall.",
       "functionalityTable": {
         "ingen": {
           "1": 100,
@@ -2330,7 +2358,9 @@
       "_comment": "15/18 - Forsyningssikkerhet",
       "functionKey": "FORSYNINGSSIKKERHET",
       "label": "Forsyningssikkerhet",
-      "subtype": "funksjon",
+      "type": "funksjon",
+      "subtype": "Samfunnets funksjonalitet",
+      "definition": "Evnen til å dekke befolkningens og samfunnets behov for varer og innsatsfaktorer. Omfatter mat, drivstoff, legemidler, innsatsvarer til landbruk og industri, samt verdikjedene, lagerbeholdningene og importavhengigheten som ligger bak dem.",
       "functionalityTable": {
         "ingen": {
           "1": 100,
@@ -2496,7 +2526,9 @@
       "_comment": "16/18 - IKT-sikkerhet sivil sektor",
       "functionKey": "IKT_SIKKERHET_SIVIL_SEKTOR",
       "label": "IKT-sikkerhet sivil sektor",
-      "subtype": "funksjon",
+      "type": "funksjon",
+      "subtype": "Samfunnets funksjonalitet",
+      "definition": "Evnen til å beskytte konfidensialitet, integritet og tilgjengelighet i sivile IKT-systemer. Omfatter sikring av kritiske digitale systemer og data, håndtering av digitale angrep og sårbarheter, samt nasjonal responskapasitet og varsling.",
       "functionalityTable": {
         "ingen": {
           "1": 100,
@@ -2662,7 +2694,9 @@
       "_comment": "17/18 - Finansielle tjenester",
       "functionKey": "FINANSIELLE_TJENESTER",
       "label": "Finansielle tjenester",
-      "subtype": "funksjon",
+      "type": "funksjon",
+      "subtype": "Samfunnets funksjonalitet",
+      "definition": "Evnen til å gjennomføre betalinger og opprettholde finansiell infrastruktur. Omfatter betalingsformidling, kortsystemer, kontantforsyning, bank- og oppgjørssystemer og verdipapirinfrastruktur, og påvirker raskt både befolkningens kjøpsevne og næringslivets drift.",
       "functionalityTable": {
         "ingen": {
           "1": 100,
@@ -2828,7 +2862,9 @@
       "_comment": "18/18 - Satelittbaserte tjenester",
       "functionKey": "SATELITTBASERTE_TJENESTER",
       "label": "Satelittbaserte tjenester",
-      "subtype": "funksjon",
+      "type": "funksjon",
+      "subtype": "Samfunnets funksjonalitet",
+      "definition": "Evnen til å opprettholde satellittbaserte tjenester samfunnet er avhengig av. Omfatter posisjons-, navigasjons- og tidsbestemmelse (PNT), satellittkommunikasjon og jordobservasjon, som blant annet understøtter transport, kraftsystemets tidssynkronisering, redningstjeneste og forsvar.",
       "functionalityTable": {
         "ingen": {
           "1": 100,
@@ -2991,13 +3027,14 @@
       }
     }
   ],
-  "_section_scenarios": "===== SCENARIOS ===== Predefined scenarios seeded into the DB by prisma/seed.ts (idempotent - safe to rerun after editing). Each scenario is a root \"hendelse\" (the event) plus the samfunnsfunksjon nodes it directly hits; purely-indirect functions are synthesized at request time from the FUNCTIONS catalog above, not listed here.",
+  "_section_scenarios": "===== SCENARIOS ===== Predefined scenarios seeded into the DB by prisma/seed.ts (idempotent - safe to rerun after editing). Each scenario is a root \"hendelse\" (the event) plus the samfunnsfunksjon nodes it directly hits; purely-indirect functions are synthesized at request time from the FUNCTIONS catalog above, not listed here. Edge strength is not authored here - it is derived from each direct hit's \"category\" (see connectionLevelForCategory in lib/calc/mappings.ts). hendelse.description and each direct hit's description are shown in the node detail panel and are rich text - same Markdown subset as \"definition\" above. riskArea: the risk area (\"risikoområde\") the scenario belongs to - free-text, used for grouping scenarios.",
   "scenarios": [
     {
       "_comment": "Scenario 1/3 - \"Scenario 1\", 6 direct hit(s). Placeholder authoring: edit hendelse.description and each hit's description with real content.",
       "name": "Scenario 1",
+      "riskArea": "TODO: angi risikoområdet dette scenarioet hører til (f.eks. \"Naturhendelser\", \"Store ulykker\", \"Tilsiktede hendelser\").",
       "hendelse": {
-        "description": "TODO: beskriv den uønskede hendelsen dette scenarioet representerer.",
+        "description": "TODO: beskriv den uønskede hendelsen dette scenarioet representerer.\n\nEksempel på formatering - **fet tekst**, *kursiv tekst*, og punktliste:\n- første punkt\n- andre punkt",
         "likelihoodCategory": "middels",
         "likelihoodValue": 60
       },
@@ -3006,49 +3043,44 @@
           "functionKey": "STYRING_OG_KRISELEDELSE",
           "label": "Styring og kriseledelse",
           "description": "TODO: beskriv hvorfor Styring og kriseledelse er direkte påvirket av dette scenarioet.",
-          "category": "svært små",
-          "connectionLevel": 2
+          "category": "svært små"
         },
         {
           "functionKey": "LOV_OG_ORDEN",
           "label": "Lov og orden",
           "description": "TODO: beskriv hvorfor Lov og orden er direkte påvirket av dette scenarioet.",
-          "category": "ingen",
-          "connectionLevel": 1
+          "category": "ingen"
         },
         {
           "functionKey": "HELSE_OMSORG_OG_SOSIALE_TJENESTER",
           "label": "Helse, omsorg og sosiale tjenester",
           "description": "TODO: beskriv hvorfor Helse, omsorg og sosiale tjenester er direkte påvirket av dette scenarioet.",
-          "category": "store",
-          "connectionLevel": 4
+          "category": "store"
         },
         {
           "functionKey": "REDNINGSTJENESTE",
           "label": "Redningstjeneste",
           "description": "TODO: beskriv hvorfor Redningstjeneste er direkte påvirket av dette scenarioet.",
-          "category": "svært store",
-          "connectionLevel": 5
+          "category": "svært store"
         },
         {
           "functionKey": "KRAFTFORSYNING",
           "label": "Kraftforsyning",
           "description": "TODO: beskriv hvorfor Kraftforsyning er direkte påvirket av dette scenarioet.",
-          "category": "ingen",
-          "connectionLevel": 1
+          "category": "ingen"
         },
         {
           "functionKey": "TRANSPORT",
           "label": "Transport",
           "description": "TODO: beskriv hvorfor Transport er direkte påvirket av dette scenarioet.",
-          "category": "middels",
-          "connectionLevel": 3
+          "category": "middels"
         }
       ]
     },
     {
       "_comment": "Scenario 2/3 - \"Scenario 2\", 4 direct hit(s). Placeholder authoring: edit hendelse.description and each hit's description with real content.",
       "name": "Scenario 2",
+      "riskArea": "TODO: angi risikoområdet dette scenarioet hører til (f.eks. \"Naturhendelser\", \"Store ulykker\", \"Tilsiktede hendelser\").",
       "hendelse": {
         "description": "TODO: beskriv den uønskede hendelsen dette scenarioet representerer.",
         "likelihoodCategory": "høy",
@@ -3059,35 +3091,32 @@
           "functionKey": "KRAFTFORSYNING",
           "label": "Kraftforsyning",
           "description": "TODO: beskriv hvorfor Kraftforsyning er direkte påvirket av dette scenarioet.",
-          "category": "svært store",
-          "connectionLevel": 5
+          "category": "svært store"
         },
         {
           "functionKey": "TRANSPORT",
           "label": "Transport",
           "description": "TODO: beskriv hvorfor Transport er direkte påvirket av dette scenarioet.",
-          "category": "store",
-          "connectionLevel": 4
+          "category": "store"
         },
         {
           "functionKey": "FINANSIELLE_TJENESTER",
           "label": "Finansielle tjenester",
           "description": "TODO: beskriv hvorfor Finansielle tjenester er direkte påvirket av dette scenarioet.",
-          "category": "middels",
-          "connectionLevel": 3
+          "category": "middels"
         },
         {
           "functionKey": "STYRING_OG_KRISELEDELSE",
           "label": "Styring og kriseledelse",
           "description": "TODO: beskriv hvorfor Styring og kriseledelse er direkte påvirket av dette scenarioet.",
-          "category": "små",
-          "connectionLevel": 2
+          "category": "små"
         }
       ]
     },
     {
       "_comment": "Scenario 3/3 - \"Scenario 3\", 4 direct hit(s). Placeholder authoring: edit hendelse.description and each hit's description with real content.",
       "name": "Scenario 3",
+      "riskArea": "TODO: angi risikoområdet dette scenarioet hører til (f.eks. \"Naturhendelser\", \"Store ulykker\", \"Tilsiktede hendelser\").",
       "hendelse": {
         "description": "TODO: beskriv den uønskede hendelsen dette scenarioet representerer.",
         "likelihoodCategory": "lav",
@@ -3098,29 +3127,25 @@
           "functionKey": "OPPVEKST_OG_UTDANNING",
           "label": "Oppvekst og utdanning",
           "description": "TODO: beskriv hvorfor Oppvekst og utdanning er direkte påvirket av dette scenarioet.",
-          "category": "middels",
-          "connectionLevel": 3
+          "category": "middels"
         },
         {
           "functionKey": "HELSE_OMSORG_OG_SOSIALE_TJENESTER",
           "label": "Helse, omsorg og sosiale tjenester",
           "description": "TODO: beskriv hvorfor Helse, omsorg og sosiale tjenester er direkte påvirket av dette scenarioet.",
-          "category": "svært små",
-          "connectionLevel": 1
+          "category": "svært små"
         },
         {
           "functionKey": "EIENDOM",
           "label": "Eiendom",
           "description": "TODO: beskriv hvorfor Eiendom er direkte påvirket av dette scenarioet.",
-          "category": "store",
-          "connectionLevel": 4
+          "category": "store"
         },
         {
           "functionKey": "LOV_OG_ORDEN",
           "label": "Lov og orden",
           "description": "TODO: beskriv hvorfor Lov og orden er direkte påvirket av dette scenarioet.",
-          "category": "svært små",
-          "connectionLevel": 2
+          "category": "svært små"
         }
       ]
     }

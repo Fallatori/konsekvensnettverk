@@ -14,15 +14,32 @@ import {
   LIKELIHOOD_LABELS,
   type ConsequenceLabel,
   type LikelihoodLabel,
+  type NodeSubtype,
 } from "@/lib/calc/mappings";
 import { TIMEFRAME_DAYS, type FunctionalityTable, type IndirectImpactRow, type CatalogEntry } from "@/lib/calc/catalog/types";
 
 const consequenceLabelSchema = z.enum(CONSEQUENCE_LABELS as [ConsequenceLabel, ...ConsequenceLabel[]]);
 const likelihoodLabelSchema = z.enum(LIKELIHOOD_LABELS as [LikelihoodLabel, ...LikelihoodLabel[]]);
 
-// Only the non-hazards subtypes - "hazards" is reserved for the hendelse node,
-// never for a samfunnsfunksjon catalog entry.
-const catalogSubtypeSchema = z.enum(["stabilitet", "befolkning", "funksjon"]);
+// What kind of catalog entry this is: a societal function, or a hazard/event.
+const catalogTypeSchema = z.enum(["funksjon", "fare"]);
+
+// The samfunnsverdi ("societal value") the entry belongs to, authored in the
+// JSON as its full Norwegian name. Only the non-hazards subtypes - "hazards"
+// is reserved for the hendelse node, never for a samfunnsfunksjon catalog
+// entry. Mapped below to the internal short NodeSubtype keys that drive node
+// colors (lib/styles/tokens.ts) and the Prisma NodeSubtype enum.
+const CATALOG_SUBTYPE_NAMES = {
+  "Styringsevne og suverenitet": "stabilitet",
+  "Befolkningens sikkerhet": "befolkning",
+  "Samfunnets funksjonalitet": "funksjon",
+} as const satisfies Record<string, NodeSubtype>;
+
+type CatalogSubtypeName = keyof typeof CATALOG_SUBTYPE_NAMES;
+
+const catalogSubtypeSchema = z.enum(
+  Object.keys(CATALOG_SUBTYPE_NAMES) as [CatalogSubtypeName, ...CatalogSubtypeName[]],
+);
 
 // Raw shape: an object keyed by ConsequenceLabel, each row keyed by timeframe
 // day *as a string* (JSON object keys are always strings) - toFunctionalityTable
@@ -36,7 +53,10 @@ const rawIndirectImpactRowSchema = z.record(z.string(), z.record(z.string(), con
 const functionDefinitionSchema = z.object({
   functionKey: z.string().min(1),
   label: z.string().min(1),
+  type: catalogTypeSchema,
   subtype: catalogSubtypeSchema,
+  /** Prose definition of what this function covers. */
+  definition: z.string().min(1),
   /** This function's own restoration curve - no shared/default fallback. */
   functionalityTable: rawFunctionalityTableSchema,
   /** This function's own impact-on-every-other-function matrix - no shared/default fallback. */
@@ -47,12 +67,15 @@ const directHitSchema = z.object({
   functionKey: z.string().min(1),
   label: z.string().min(1),
   description: z.string().min(1),
+  /** Also the sole source of the edge's connection level - see
+   * connectionLevelForCategory in lib/calc/mappings.ts. */
   category: consequenceLabelSchema,
-  connectionLevel: z.number().int().min(1).max(5),
 });
 
 const scenarioDefinitionSchema = z.object({
   name: z.string().min(1),
+  /** The risk area ("risikoområde") this scenario belongs to - free text. */
+  riskArea: z.string().min(1),
   hendelse: z.object({
     description: z.string().min(1),
     likelihoodCategory: likelihoodLabelSchema,
@@ -144,7 +167,11 @@ export const CONSEQUENCE_CATALOG: Record<string, CatalogEntry> = Object.fromEntr
     {
       functionKey: fn.functionKey,
       label: fn.label,
-      subtype: fn.subtype,
+      type: fn.type,
+      // Full samfunnsverdi name in the JSON -> internal short key.
+      subtype: CATALOG_SUBTYPE_NAMES[fn.subtype],
+      subtypeLabel: fn.subtype,
+      definition: fn.definition,
       functionalityTable: toFunctionalityTable(fn.functionKey, fn.functionalityTable),
       indirectImpactRow: toIndirectImpactRow(fn.functionKey, fn.indirectImpactRow, FUNCTION_KEYS),
     } satisfies CatalogEntry,

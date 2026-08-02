@@ -8,6 +8,7 @@ import {
 } from "@/lib/calc/mappings";
 import { GaugeIndicator } from "@/components/graph/GaugeIndicator";
 import { InfoTooltip } from "@/components/InfoTooltip";
+import { RichText } from "@/components/RichText";
 import type { ComputedNode } from "@/lib/calc/recompute";
 import { SUBTYPE_FILL_COLORS } from "@/lib/styles/tokens";
 
@@ -30,7 +31,13 @@ export function NodeDetailPanel({
   return (
     <div className="panel">
       <div className="panelHeader">
-        <h2>{node.label}</h2>
+        {/* The definition is the function's general description from the
+            catalog (domainData.json), so it belongs on the label itself -
+            the scenario-specific text is rendered separately below. */}
+        <h2 className="tooltipAnchor">
+          {node.label}
+          {node.definition && <InfoTooltip text={node.definition} placement="below" />}
+        </h2>
         <button type="button" onClick={onClose} aria-label="Lukk">
           <span className="material-symbols-outlined" aria-hidden="true">
             close
@@ -40,7 +47,12 @@ export function NodeDetailPanel({
 
       <p className="hint">Undertype: {NODE_SUBTYPE_LABEL[node.subtype]}</p>
 
-      {node.description && <p>{node.description}</p>}
+      {node.description && (
+        <>
+          <p className="hint descriptionLabel">{node.isHendelse ? "Om hendelsen" : "I dette scenarioet"}</p>
+          <RichText text={node.description} />
+        </>
+      )}
 
       {!node.isHendelse && (
         <div style={{ display: "flex", justifyContent: "center", margin: "1rem 0" }}>

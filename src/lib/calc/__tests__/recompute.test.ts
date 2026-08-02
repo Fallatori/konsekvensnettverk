@@ -28,7 +28,10 @@ describe("recompute - two-round indirect cascade", () => {
   const A: CatalogEntry = {
     functionKey: "A",
     label: "A",
+    type: "funksjon",
     subtype: "funksjon",
+    subtypeLabel: "Samfunnets funksjonalitet",
+    definition: "test fixture",
     functionalityTable: FLAT_TABLE,
     indirectImpactRow: {
       ...emptyRow(),
@@ -38,7 +41,10 @@ describe("recompute - two-round indirect cascade", () => {
   const B: CatalogEntry = {
     functionKey: "B",
     label: "B",
+    type: "funksjon",
     subtype: "funksjon",
+    subtypeLabel: "Samfunnets funksjonalitet",
+    definition: "test fixture",
     functionalityTable: FLAT_TABLE,
     indirectImpactRow: {
       ...emptyRow(),
@@ -48,7 +54,10 @@ describe("recompute - two-round indirect cascade", () => {
   const C: CatalogEntry = {
     functionKey: "C",
     label: "C",
+    type: "funksjon",
     subtype: "funksjon",
+    subtypeLabel: "Samfunnets funksjonalitet",
+    definition: "test fixture",
     functionalityTable: FLAT_TABLE,
     indirectImpactRow: {
       ...emptyRow(),
@@ -58,7 +67,10 @@ describe("recompute - two-round indirect cascade", () => {
   const D: CatalogEntry = {
     functionKey: "D",
     label: "D",
+    type: "funksjon",
     subtype: "funksjon",
+    subtypeLabel: "Samfunnets funksjonalitet",
+    definition: "test fixture",
     functionalityTable: FLAT_TABLE,
     indirectImpactRow: emptyRow(),
   };
@@ -138,14 +150,20 @@ describe("recompute - cap at 100", () => {
   const HIGH: CatalogEntry = {
     functionKey: "HIGH",
     label: "High",
+    type: "funksjon",
     subtype: "funksjon",
+    subtypeLabel: "Samfunnets funksjonalitet",
+    definition: "test fixture",
     functionalityTable: FLAT_TABLE,
     indirectImpactRow: emptyRow(),
   };
   const SOURCE: CatalogEntry = {
     functionKey: "SOURCE",
     label: "Source",
+    type: "funksjon",
     subtype: "funksjon",
+    subtypeLabel: "Samfunnets funksjonalitet",
+    definition: "test fixture",
     functionalityTable: FLAT_TABLE,
     indirectImpactRow: {
       ...emptyRow(),
@@ -209,7 +227,10 @@ describe("recompute - direct edge follows the target node's time-adjusted severi
   const NODE: CatalogEntry = {
     functionKey: "NODE",
     label: "Node",
+    type: "funksjon",
     subtype: "funksjon",
+    subtypeLabel: "Samfunnets funksjonalitet",
+    definition: "test fixture",
     functionalityTable: DECAYING_TABLE,
     indirectImpactRow: emptyRow(),
   };
