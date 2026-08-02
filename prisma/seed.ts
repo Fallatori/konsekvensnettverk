@@ -41,6 +41,23 @@ async function main() {
     await seedScenario(team.id, definition);
   }
 
+  // Drop scenarios that are no longer in domainData.json, so the file is the
+  // single source of truth. Without this, deleting or RENAMING an entry
+  // leaves its old row behind forever - seedScenario only ever touches the
+  // scenario it is about to recreate, matched by name. Nodes and edges go
+  // with it via onDelete: Cascade.
+  const authoredNames = SCENARIO_DEFINITIONS.map((definition) => definition.name);
+  const stale = await prisma.scenario.findMany({
+    where: { teamId: team.id, name: { notIn: authoredNames } },
+    select: { name: true },
+  });
+  if (stale.length > 0) {
+    await prisma.scenario.deleteMany({
+      where: { teamId: team.id, name: { notIn: authoredNames } },
+    });
+    console.log(`  Removed ${stale.length} scenario(s) no longer in domainData.json: ${stale.map((s) => `"${s.name}"`).join(", ")}.`);
+  }
+
   console.log(`Seeded team "${team.name}", ${DEV_SEED_USERS.length} admin users, ${SCENARIO_DEFINITIONS.length} scenarios.`);
   for (const seedUser of DEV_SEED_USERS) {
     console.log(`Admin login: ${seedUser.email} / ${seedUser.password}`);
