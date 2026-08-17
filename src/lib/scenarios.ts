@@ -12,12 +12,18 @@ export async function listScenariosForUser(userId: string) {
   const teamIds = memberships.map((m) => m.teamId);
   if (teamIds.length === 0) return [];
 
-  return prisma.scenario.findMany({
+  const scenarios = await prisma.scenario.findMany({
     where: { teamId: { in: teamIds } },
     select: { id: true, name: true },
-    orderBy: { name: "asc" },
   });
+
+  // Postgres ORDER BY name is plain lexicographic (so "Scenario 12" sorts
+  // before "Scenario 2"), not what users expect from numbered names - sort
+  // in JS with numeric-aware comparison instead.
+  return scenarios.sort((a, b) => SCENARIO_NAME_COLLATOR.compare(a.name, b.name));
 }
+
+const SCENARIO_NAME_COLLATOR = new Intl.Collator("nb", { numeric: true, sensitivity: "base" });
 
 export async function getScenarioForUser(scenarioId: string, userId: string) {
   const scenario = await prisma.scenario.findUnique({

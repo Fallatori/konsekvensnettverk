@@ -13,7 +13,7 @@ import {
 import { ReactFlow, Controls, MarkerType, useReactFlow, type Edge } from "@xyflow/react";
 import "@xyflow/react/dist/style.css";
 import type { ComputedEdge, ComputedNode } from "@/lib/calc/recompute";
-import { NODE_SUBTYPES, nearestConsequenceLabel, type ConsequenceLabel } from "@/lib/calc/mappings";
+import { NODE_SUBTYPES, nearestConsequenceLabel } from "@/lib/calc/mappings";
 import { GaugeNode, type GaugeNodeType } from "@/components/graph/GaugeNode";
 import { FloatingEdge, EDGE_WIRE_COLOR, type FloatingEdgeType } from "@/components/graph/FloatingEdge";
 import { ZoneBackgroundNode, type ZoneBackgroundNodeType, type ZoneKind } from "@/components/graph/ZoneBackgroundNode";
@@ -55,6 +55,56 @@ function indirectEdgeOpacity(points: number): number {
 
 type SimNode = SimulationNodeDatum & { id: string; anchorX: number; anchorY: number };
 
+/** Rectangular collision force (d3-force compatible), for the "lys"/"terminal"
+ * card themes. forceCollide() only supports circular collision - fine for
+ * "graf"'s square 96x96 node, but "lys"/"terminal" cards are wide-and-short
+ * rectangles (e.g. 224x88). A single circular radius can't satisfy both axes
+ * at once: sized for the width (to keep side-by-side cards apart), its
+ * diameter badly overshoots the much smaller row height, so every
+ * same-column row pair reads as "colliding" and gets pushed apart well
+ * beyond rowSpacing. With the row anchor deliberately weak (see
+ * ROW_ANCHOR_STRENGTH), that excess push sticks and varies with local node
+ * density - which is what made rows drift out of horizontal alignment across
+ * columns in those two themes. This instead separates any overlapping pair
+ * of axis-aligned boxes along whichever axis has the smaller overlap,
+ * matching the card's actual footprint on both axes. */
+function forceRectCollide(width: number, height: number, padding: number) {
+  let nodes: SimNode[] = [];
+  const boxWidth = width + padding * 2;
+  const boxHeight = height + padding * 2;
+
+  function force(alpha: number) {
+    for (let i = 0; i < nodes.length; i++) {
+      for (let j = i + 1; j < nodes.length; j++) {
+        const a = nodes[i];
+        const b = nodes[j];
+        const dx = (b.x ?? 0) - (a.x ?? 0);
+        const dy = (b.y ?? 0) - (a.y ?? 0);
+        const overlapX = boxWidth - Math.abs(dx);
+        const overlapY = boxHeight - Math.abs(dy);
+        if (overlapX <= 0 || overlapY <= 0) continue;
+        // Resolve along whichever axis has the smaller overlap - the
+        // cheaper separation that clears the collision.
+        if (overlapX < overlapY) {
+          const push = ((overlapX / 2) * alpha) * (dx < 0 ? -1 : 1);
+          a.x = (a.x ?? 0) - push;
+          b.x = (b.x ?? 0) + push;
+        } else {
+          const push = ((overlapY / 2) * alpha) * (dy < 0 ? -1 : 1);
+          a.y = (a.y ?? 0) - push;
+          b.y = (b.y ?? 0) + push;
+        }
+      }
+    }
+  }
+
+  force.initialize = (initializedNodes: SimNode[]) => {
+    nodes = initializedNodes;
+  };
+
+  return force;
+}
+
 /**
  * Column key per the layout rules:
  * 1. hazard (hendelse) nodes on one side,
@@ -83,11 +133,28 @@ function columnOrder(nodes: ComputedNode[]): string[] {
   return order;
 }
 
+// A column holding every node of one kind (e.g. "indirect" always groups ALL
+// promoted nodes into one column regardless of subtype, unlike direct nodes
+// which split by subtype) can otherwise stack far more nodes single-file
+// than the others - a scenario that promotes most of the ~18
+// samfunnsfunksjon nodes indirectly turns that column into one very tall
+// line, dwarfing the rest of the graph and defeating the fit-to-view
+// overview. Past this many nodes, a column wraps into an extra sub-column
+// instead of growing taller indefinitely. Kept low (rather than e.g. 6) so
+// a big column reads as a compact, roughly square block instead of a
+// slightly-shorter-but-still-tall one - trading column height for width,
+// which fit-to-view has an easier time with since viewports are wide.
+const MAX_COLUMN_ROWS = 4;
+
 /** Each node's target column (fixed x) and row (initial y, softly anchored)
- * - the structured starting point that the force simulation then refines. */
+ * - the structured starting point that the force simulation then refines.
+ * A column with more than MAX_COLUMN_ROWS nodes wraps into a grid of
+ * several tighter-spaced sub-columns (still read as one thematic column,
+ * just bounded in height) rather than one long single-file line; columns
+ * are then placed left-to-right using each one's actual grid width, so a
+ * wrapped column doesn't overlap its neighbor. */
 function computeAnchors(nodes: ComputedNode[], layout: NodeLayoutSpec): Map<string, { x: number; y: number }> {
   const order = columnOrder(nodes);
-  const columnIndex = new Map(order.map((key, i) => [key, i]));
 
   const byColumn = new Map<string, ComputedNode[]>();
   for (const node of nodes) {
@@ -95,14 +162,37 @@ function computeAnchors(nodes: ComputedNode[], layout: NodeLayoutSpec): Map<stri
     (byColumn.get(key) ?? byColumn.set(key, []).get(key)!).push(node);
   }
 
+  // Tighter than columnSpacing (which separates distinct thematic columns)
+  // so wrapped sub-columns still read as one group. rowSpacing alone is
+  // only safe for "graf"'s small circles (width well under rowSpacing) - it
+  // was tuned for the vertical gap between stacked nodes, not the
+  // horizontal gap between wide "lys"/"terminal" cards, whose width (200 /
+  // 224) actually exceeds rowSpacing (160 / 140). Flooring at width + a
+  // fixed gap keeps sub-columns from overlapping in every theme.
+  const subColumnSpacing = Math.max(layout.rowSpacing, layout.width + 40);
+  // Edge-to-edge gap between neighboring thematic columns, preserved from
+  // the un-wrapped case where x was simply `columnIndex * layout.columnSpacing`.
+  const columnGap = layout.columnSpacing - layout.width;
+
   const anchors = new Map<string, { x: number; y: number }>();
-  for (const [key, groupNodes] of byColumn) {
-    const x = (columnIndex.get(key) ?? 0) * layout.columnSpacing;
+  let cursor = 0; // left edge of the next column
+  for (const key of order) {
+    const groupNodes = byColumn.get(key) ?? [];
+    const subCols = Math.max(1, Math.ceil(groupNodes.length / MAX_COLUMN_ROWS));
+    const rows = Math.ceil(groupNodes.length / subCols);
+    const halfWidth = ((subCols - 1) * subColumnSpacing) / 2 + layout.width / 2;
+    const centerX = cursor + halfWidth;
+
     const sorted = [...groupNodes].sort((a, b) => a.id.localeCompare(b.id));
     sorted.forEach((node, i) => {
-      const y = (i - (sorted.length - 1) / 2) * layout.rowSpacing;
+      const row = Math.floor(i / subCols);
+      const subCol = i % subCols;
+      const x = centerX + (subCol - (subCols - 1) / 2) * subColumnSpacing;
+      const y = (row - (rows - 1) / 2) * layout.rowSpacing;
       anchors.set(node.id, { x, y });
     });
+
+    cursor = centerX + halfWidth + columnGap;
   }
   return anchors;
 }
@@ -131,18 +221,43 @@ function layoutWithForce(
     return { id: node.id, x: anchor.x, y: anchor.y, anchorX: anchor.x, anchorY: anchor.y };
   });
 
+  // A large column (e.g. a scenario hitting all ~18 samfunnsfunksjon nodes,
+  // which all share one subtype and so stack in a single column) can be far
+  // taller than LINK_DISTANCE. A fixed link distance would then fight the
+  // column anchor for every node whose row is far from the hendelse's row -
+  // satisfying "190px away" mostly means pulling those nodes sideways, off
+  // their column and into a neighboring one. Deriving each edge's target
+  // distance from the anchors' actual separation keeps the link force
+  // consistent with the column layout instead of fighting it.
+  const anchorLinkDistance = (sourceId: string, targetId: string): number => {
+    const source = anchors.get(sourceId);
+    const target = anchors.get(targetId);
+    if (!source || !target) return LINK_DISTANCE;
+    return Math.max(LINK_DISTANCE, Math.hypot(source.x - target.x, source.y - target.y));
+  };
+
   const simulation = forceSimulation(simNodes)
     .force("charge", forceManyBody().strength(CHARGE_STRENGTH).distanceMax(CHARGE_MAX_DISTANCE))
     .force(
       "link",
-      forceLink<SimNode, { source: string; target: string }>(
-        edges.map((edge) => ({ source: edge.source, target: edge.target })),
-      ).id((node) => node.id).distance(LINK_DISTANCE),
+      forceLink<SimNode, { source: string; target: string; distance: number }>(
+        edges.map((edge) => ({
+          source: edge.source,
+          target: edge.target,
+          distance: anchorLinkDistance(edge.source, edge.target),
+        })),
+      ).id((node) => node.id).distance((edge) => edge.distance),
       // strength left at d3's default (degree-adaptive) - a fixed strength
       // pulls a densely-connected graph (many indirect edges) into a tight
       // "hairball" instead of letting repulsion/collision spread it out.
     )
-    .force("collide", forceCollide(layout.radius + 32).iterations(2))
+    .force(
+      "collide",
+      // "graf"'s node is a square, so its circular radius is a good enough
+      // approximation - the rect themes need the anisotropic box force above
+      // (see forceRectCollide) since width and height differ substantially.
+      layout.shape === "circle" ? forceCollide(layout.radius + 32).iterations(2) : forceRectCollide(layout.width, layout.height, 16),
+    )
     .force("x", forceX<SimNode>((node) => node.anchorX).strength(COLUMN_ANCHOR_STRENGTH))
     .force("y", forceY<SimNode>((node) => node.anchorY).strength(ROW_ANCHOR_STRENGTH))
     .stop();
@@ -280,16 +395,6 @@ export function ScenarioGraph({
   // GaugeNode/FloatingEdge read hover state from GraphHoverProvider instead
   // (see graphHoverContext.ts) and apply their own opacity locally.
   const { rfNodes, rfEdges, fitNodes } = useMemo(() => {
-    const nodesById = new Map(nodes.map((node) => [node.id, node]));
-    // Time-adjusted, not the node's static authored consequenceCategory -
-    // matches both the gauge's own displayed category below and the direct
-    // edge's connectionLevel (lib/calc/recompute.ts), so a fully-recovered
-    // target shows no marker at all, same as its "ingen" gauge and edge width.
-    const severityFor = (nodeId: string): ConsequenceLabel => {
-      const node = nodesById.get(nodeId);
-      return node ? nearestConsequenceLabel(node.totalConsequenceValue) : "ingen";
-    };
-
     const baseNodes: GaugeNodeType[] = nodes.map((node) => ({
       id: node.id,
       type: "gauge",
@@ -299,6 +404,7 @@ export function ScenarioGraph({
         category: node.isHendelse ? null : nearestConsequenceLabel(node.totalConsequenceValue),
         isHendelse: node.isHendelse,
         subtype: node.subtype,
+        subtypeLabel: node.subtypeLabel,
       },
     }));
 
@@ -317,7 +423,7 @@ export function ScenarioGraph({
         markerUnits: "userSpaceOnUse",
         color: EDGE_WIRE_COLOR,
       },
-      data: { kind: edge.kind, severity: severityFor(edge.childId) },
+      data: { kind: edge.kind },
       style:
         edge.kind === "DIRECT"
           ? { strokeWidth: 1 + edge.connectionLevel }

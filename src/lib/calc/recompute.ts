@@ -1,5 +1,5 @@
 import { FUNCTION_KEYS as REAL_FUNCTION_KEYS, getCatalogEntry as getRealCatalogEntry } from "@/lib/calc/catalog";
-import type { CatalogEntry, TimeframeDays } from "@/lib/calc/catalog/types";
+import type { CatalogEntry, CatalogSubtypeLabel, TimeframeDays } from "@/lib/calc/catalog/types";
 import {
   CONSEQUENCE_LABEL_BY_PRISMA,
   CONSEQUENCE_VALUE,
@@ -74,6 +74,10 @@ export type ComputedNode = {
   /** false for synthesized indirect-only nodes (no persisted Node row). */
   isDirect: boolean;
   subtype: NodeSubtype;
+  /** The full samfunnsverdi name behind `subtype`, as authored in
+   * domainData.json (e.g. "Samfunnets funksjonalitet") - null for the
+   * hendelse node, which has no catalog entry. */
+  subtypeLabel: CatalogSubtypeLabel | null;
   consequenceCategory: ConsequenceLabel | null;
   /** Scenario's raw default value - 0 for synthesized indirect nodes. Used
    * by the comparison dashboard as the "original" baseline. */
@@ -251,6 +255,7 @@ export function recompute(input: RecomputeInput, options: RecomputeOptions = {})
       isHendelse: true,
       isDirect: true,
       subtype: input.hendelseSubtype,
+      subtypeLabel: null,
       consequenceCategory: null,
       originalConsequenceValue: 0,
       timedConsequenceValue: 0,
@@ -278,6 +283,7 @@ export function recompute(input: RecomputeInput, options: RecomputeOptions = {})
       isHendelse: false,
       isDirect: true,
       subtype: entry.node!.subtype,
+      subtypeLabel: catalogLookup(entry.functionKey).subtypeLabel,
       consequenceCategory: entry.category,
       originalConsequenceValue: entry.originalConsequenceValue,
       timedConsequenceValue: entry.timedConsequenceValue,
@@ -299,6 +305,7 @@ export function recompute(input: RecomputeInput, options: RecomputeOptions = {})
       isHendelse: false,
       isDirect: false,
       subtype: catalogLookup(entry.functionKey).subtype,
+      subtypeLabel: catalogLookup(entry.functionKey).subtypeLabel,
       consequenceCategory: entry.category,
       originalConsequenceValue: 0,
       timedConsequenceValue: entry.timedConsequenceValue,

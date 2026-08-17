@@ -2,34 +2,28 @@ import { BaseEdge, useInternalNode, type Edge, type EdgeProps } from "@xyflow/re
 import { curvedPath, floatingEdgePoints, type NodeBoundary } from "@/components/graph/floatingEdgeGeometry";
 import { useEdgeHoverOpacity } from "@/components/graph/graphHoverContext";
 import { useCurrentEdgeStyle, useCurrentTheme } from "@/lib/styles/context";
-import {
-  severityGlyphPoints,
-  severityMarkerFor,
-  SUBTYPE_FILL_COLORS,
-  THEME_NODE_LAYOUT,
-  type SeverityMarkerShape,
-} from "@/lib/styles/tokens";
+import { SUBTYPE_FILL_COLORS, THEME_NODE_LAYOUT } from "@/lib/styles/tokens";
 import type { GaugeNodeType } from "@/components/graph/GaugeNode";
-import type { ConsequenceLabel } from "@/lib/calc/mappings";
 
 export type FloatingEdgeData = {
   kind: "DIRECT" | "INDIRECT";
-  /** Severity of the effect this edge carries - the target node's
-   * consequenceCategory (see lib/styles/tokens.ts). */
-  severity: ConsequenceLabel;
 };
 
 export type FloatingEdgeType = Edge<FloatingEdgeData, "floating">;
 
 // Flat "wire" stroke shared by every edge - severity is carried by the
-// midpoint marker (shape + color), not by the line itself. Reads the
-// --edge-wire custom property directly so the wire recolors on theme switch
+// line's strokeWidth (see ScenarioGraph.tsx), not a separate marker. Reads
+// the --edge-wire custom property directly so the wire recolors on theme switch
 // (see globals.css [data-theme] blocks). --edge-wire is a fully opaque color
 // in every theme - EDGE_BASE_OPACITY below is what makes edges translucent,
 // so it's the one thing controlling how strongly overlapping edges combine,
 // regardless of connection style or color source (flat wire, gradient, or
 // flow accent).
 export const EDGE_WIRE_COLOR = "var(--edge-wire)";
+// "flow" style's accent color - exported so SeverityLegend can match it too
+// (see SeverityLegend.tsx: the legend's swatch color always tracks the
+// active connection style's actual line color, not a fixed palette).
+export const EDGE_FLOW_COLOR = "var(--accent)";
 // Every connection - any style, any theme - renders at this base opacity, so
 // a single edge reads as soft/muted but two or more crossing at the same
 // point visibly compound into a stronger color (plain SVG alpha stacking -
@@ -37,31 +31,10 @@ export const EDGE_WIRE_COLOR = "var(--edge-wire)";
 // ScenarioGraph.tsx already sets for indirect edges (their own strength
 // signal), not replaced by it.
 const EDGE_BASE_OPACITY = 0.55;
-// Thin outline so a marker reads clearly against edges/the dotted canvas -
-// matches --surface-container-lowest in globals.css.
-const MARKER_OUTLINE_COLOR = "var(--surface-container-lowest)";
-const MARKER_RADIUS = 6;
 // Animated "flow" connection style - marching-ants dash, sped up per its own
 // keyframes in globals.css (.edgeFlow). The only dashed style now - "graf",
 // "lys", and "terminal" all draw solid "standard"/"gradient" lines.
 const FLOW_DASHARRAY = "6 6";
-
-function SeverityMarkerGlyph({
-  shape,
-  x,
-  y,
-  color,
-}: {
-  shape: SeverityMarkerShape;
-  x: number;
-  y: number;
-  color: string;
-}) {
-  const shared = { fill: color, stroke: MARKER_OUTLINE_COLOR, strokeWidth: 1.5 };
-
-  if (shape === "circle") return <circle cx={x} cy={y} r={MARKER_RADIUS} {...shared} />;
-  return <polygon points={severityGlyphPoints(shape, x, y, MARKER_RADIUS) ?? ""} {...shared} />;
-}
 
 /**
  * Kumu-style floating edge: connects wherever the straight line between the
@@ -71,9 +44,9 @@ function SeverityMarkerGlyph({
  * edges fan out naturally instead of converging on the same point and
  * overlapping.
  *
- * Severity (how bad the effect landed on the target node) is always shown as
- * a shape+color marker at the edge's midpoint, regardless of connection
- * style - see severityMarker.ts for why color alone isn't enough. The line
+ * Severity (how bad the effect landed on the target node) is shown by the
+ * line's own strokeWidth (see ScenarioGraph.tsx) rather than a separate
+ * on-edge marker - see SeverityLegend.tsx for the matching legend. The line
  * itself has three independently selectable styles (see EdgeStyleContext),
  * all solid and all translucent (EDGE_BASE_OPACITY) so crossing edges
  * visibly compound into a stronger color where they overlap:
@@ -83,7 +56,7 @@ function SeverityMarkerGlyph({
  * - "flow": an animated dashed line in the theme's accent color, reading as
  *   directional data/consequence flow rather than a static connection.
  */
-export function FloatingEdge({ id, source, target, markerEnd, style, data }: EdgeProps<FloatingEdgeType>) {
+export function FloatingEdge({ id, source, target, markerEnd, style }: EdgeProps<FloatingEdgeType>) {
   const sourceNode = useInternalNode<GaugeNodeType>(source);
   const targetNode = useInternalNode<GaugeNodeType>(target);
   const opacity = useEdgeHoverOpacity(source, target);
@@ -99,8 +72,7 @@ export function FloatingEdge({ id, source, target, markerEnd, style, data }: Edg
       : { shape: "rect", halfWidth: layout.width / 2, halfHeight: layout.height / 2 };
 
   const { sx, sy, tx, ty } = floatingEdgePoints(sourceNode, targetNode, boundary, boundary);
-  const { path, mid } = curvedPath(sx, sy, tx, ty, id);
-  const marker = data ? severityMarkerFor(data.severity) : null;
+  const { path } = curvedPath(sx, sy, tx, ty, id);
 
   const gradientId = `edge-gradient-${id}`;
 
@@ -112,7 +84,7 @@ export function FloatingEdge({ id, source, target, markerEnd, style, data }: Edg
   if (connectionStyle === "gradient") {
     stroke = `url(#${gradientId})`;
   } else if (connectionStyle === "flow") {
-    stroke = "var(--accent)";
+    stroke = EDGE_FLOW_COLOR;
     strokeDasharray = FLOW_DASHARRAY;
     className = "edgeFlow";
     // "lys" is a flat SaaS-card look with no ambient glow elsewhere, so a
@@ -139,7 +111,6 @@ export function FloatingEdge({ id, source, target, markerEnd, style, data }: Edg
         </defs>
       )}
       <BaseEdge id={id} path={path} markerEnd={markerEnd} style={edgeStyle} className={className} />
-      {marker && <SeverityMarkerGlyph shape={marker.shape} x={mid.x} y={mid.y} color={marker.color} />}
     </g>
   );
 }

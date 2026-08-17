@@ -1,7 +1,6 @@
 import {
   CONSEQUENCE_LABELS,
   CONSEQUENCE_VALUE,
-  NODE_SUBTYPE_LABEL,
   consequenceLabelForIndirectPoints,
   nearestConsequenceLabel,
   type ConsequenceLabel,
@@ -14,12 +13,15 @@ import { SUBTYPE_FILL_COLORS } from "@/lib/styles/tokens";
 
 export function NodeDetailPanel({
   node,
+  riskArea,
   editImpactSummary,
   onClose,
   onCategoryChange,
   onResetOverrides,
 }: {
   node: ComputedNode;
+  /** The scenario's free-text riskArea (src/data/domainData.json) - only shown for the hendelse node. */
+  riskArea: string;
   /** "As a result of this change" summary, shown after the most recent edit. */
   editImpactSummary: string | null;
   onClose: () => void;
@@ -45,7 +47,11 @@ export function NodeDetailPanel({
         </button>
       </div>
 
-      <p className="hint">Undertype: {NODE_SUBTYPE_LABEL[node.subtype]}</p>
+      {node.isHendelse ? (
+        <p className="hint">Risikoområde: {riskArea}</p>
+      ) : (
+        <p className="hint">Undertype: {node.subtypeLabel}</p>
+      )}
 
       {node.description && (
         <>

@@ -81,6 +81,9 @@ model Scenario {
   id        String   @id @default(uuid())
   teamId    String
   name      String
+  // Free-text risk area ("risikoområde") this scenario belongs to, authored
+  // verbatim in domainData.json - not a fixed category, shown as-is in the UI.
+  riskArea  String
   createdAt DateTime @default(now())
 
   team  Team   @relation(fields: [teamId], references: [id], onDelete: Cascade)

@@ -60,7 +60,7 @@ async function seedScenario(teamId: string, definition: ScenarioDefinition) {
   }
 
   const scenario = await prisma.scenario.create({
-    data: { teamId, name: definition.name },
+    data: { teamId, name: definition.name, riskArea: definition.riskArea },
   });
 
   const hendelse = await prisma.node.create({
