@@ -85,7 +85,7 @@ function renderBlocks(text: string): ReactNode[] {
 
 function joinWithLineBreaks(lines: string[]): ReactNode[] {
   return lines.flatMap((line, i) =>
-    i === 0 ? renderInline(line) : [<br key={`br-${i}`} />, ...renderInline(line)],
+    i === 0 ? renderInline(line, "l0") : [<br key={`br-${i}`} />, ...renderInline(line, `l${i}`)],
   );
 }
 
@@ -93,14 +93,18 @@ function joinWithLineBreaks(lines: string[]): ReactNode[] {
 // Both require non-empty, non-marker content, so a lone "*" stays literal.
 const INLINE_PATTERN = /(\*\*[^*]+\*\*|\*[^*]+\*)/g;
 
-function renderInline(text: string): ReactNode[] {
+// keyPrefix disambiguates calls for different lines of the same paragraph -
+// without it, two lines' inline pieces would both start their keys at 0 and
+// collide once joinWithLineBreaks flattens them into one children array.
+function renderInline(text: string, keyPrefix = "i"): ReactNode[] {
   return text.split(INLINE_PATTERN).map((part, i) => {
+    const key = `${keyPrefix}-${i}`;
     if (part.startsWith("**") && part.endsWith("**") && part.length > 4) {
-      return <strong key={i}>{part.slice(2, -2)}</strong>;
+      return <strong key={key}>{part.slice(2, -2)}</strong>;
     }
     if (part.startsWith("*") && part.endsWith("*") && part.length > 2) {
-      return <em key={i}>{part.slice(1, -1)}</em>;
+      return <em key={key}>{part.slice(1, -1)}</em>;
     }
-    return <Fragment key={i}>{part}</Fragment>;
+    return <Fragment key={key}>{part}</Fragment>;
   });
 }

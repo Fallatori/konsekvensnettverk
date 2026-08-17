@@ -12,6 +12,7 @@ function node(overrides: Partial<RecomputeResult["nodes"][number]>): RecomputeRe
     isHendelse: false,
     isDirect: true,
     subtype: "funksjon",
+    subtypeLabel: "Samfunnets funksjonalitet",
     consequenceCategory: "middels",
     originalConsequenceValue: 0,
     timedConsequenceValue: 0,

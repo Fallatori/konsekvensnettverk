@@ -17,9 +17,9 @@ export async function listScenariosForUser(userId: string) {
     select: { id: true, name: true },
   });
 
-  // Sorted here rather than in the query: Postgres orders names byte by byte,
-  // which puts "Scenario 10" before "Scenario 2". A numeric collator compares
-  // embedded digit runs as numbers, so 2 < 10 as an author would expect.
+  // Postgres ORDER BY name is plain lexicographic (so "Scenario 12" sorts
+  // before "Scenario 2"), not what users expect from numbered names - sort
+  // in JS with numeric-aware comparison instead.
   return scenarios.sort((a, b) => SCENARIO_NAME_COLLATOR.compare(a.name, b.name));
 }
 

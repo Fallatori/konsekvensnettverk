@@ -375,11 +375,19 @@ a {
 /* Zone "swim lane" backgrounds (see ZoneBackgroundNode.tsx) - divides the
    canvas into hendelse -> direkte påvirkning -> indirekte påvirkning. Same
    three-tier visual language in every theme: the origin lane gets an accent
-   tint, the direct-impact lane a neutral tint, and the indirect lane a
-   hatched texture (its nodes are synthesized, not authored, so the lane
-   itself should read as "inferred" rather than as solid fact). Each theme
-   only supplies its own color via the existing --accent/--surface-*
-   tokens - no per-theme overrides needed here. */
+   tint, the direct-impact lane a neutral tint, and the indirect lane reads
+   as "inferred" (its nodes are synthesized, not authored) via a flat,
+   slightly more saturated tint plus a dashed outline - not a fill texture.
+   Two earlier attempts (a 45deg hatch, then a dot grid) both tiled a
+   pattern across the *entire* lane, and either one reads as noisy at scale:
+   the indirect column can span several grid-wrapped sub-columns (see
+   computeAnchors in ScenarioGraph.tsx), so a whole-area repeating pattern
+   means constant visual "static" behind the nodes while panning/zooming.
+   A dashed border only draws the "not solid fact" signal once, at the
+   edge - the same idiom the divider between lanes already uses - so it
+   doesn't compete with node content across the whole lane. Each theme only
+   supplies its own color via the existing --accent/--surface-* tokens - no
+   per-theme overrides needed here. */
 .zoneBackground {
   box-sizing: border-box;
   width: 100%;
@@ -421,11 +429,12 @@ a {
 }
 
 .zoneBackground--indirekte {
-  background: repeating-linear-gradient(
-    135deg,
-    color-mix(in srgb, var(--surface-container-highest) 60%, transparent) 0 10px,
-    transparent 10px 20px
-  );
+  background: color-mix(in srgb, var(--accent) 16%, var(--surface-container-highest) 60%);
+  /* No left border - the "direkte" lane's own zoneBackgroundDivider already
+     dashes that shared edge; doubling it up here would just thicken/blur
+     that one line rather than add a distinct cue. */
+  border-block: 1px dashed color-mix(in srgb, var(--accent) 55%, transparent);
+  border-right: 1px dashed color-mix(in srgb, var(--accent) 55%, transparent);
 }
 
 .severityLegend {
@@ -827,7 +836,6 @@ a {
   font-size: 0.65rem;
   font-weight: 700;
   letter-spacing: 0.04em;
-  text-transform: uppercase;
   border-radius: 999px;
 }
 

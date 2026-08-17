@@ -1,6 +1,12 @@
+import { FUNCTION_KEYS } from "@/lib/calc/catalog";
 import type { TimeframeDays } from "@/lib/calc/catalog/types";
 import { nearestConsequenceLabel } from "@/lib/calc/mappings";
 import type { ComputedNode } from "@/lib/calc/recompute";
+
+/** Fixed count of critical societal functions in the catalog (18) - the
+ * denominator in the overview's affected-count sentence never shrinks or
+ * grows with what happens to be in the current graph. */
+const TOTAL_FUNCTIONS = FUNCTION_KEYS.length;
 
 export type OverviewInput = {
   scenarioName: string;
@@ -80,12 +86,11 @@ export function describeOverview({
   const mostAffected = affected.reduce((max, n) => (n.totalConsequenceValue > max.totalConsequenceValue ? n : max));
   const mostAffectedCategory = nearestConsequenceLabel(mostAffected.totalConsequenceValue);
 
-  const affectedCountSentence =
-    affected.length === 1
-      ? "1 funksjon er påvirket"
-      : `${affected.length} av ${functionNodes.length} funksjoner er påvirket`;
+  // Directly authored on the scenario, not "currently has nonzero severity" -
+  // so it stays stable regardless of overrides or the indirect toggle.
+  const directCount = functionNodes.filter((n) => n.isDirect).length;
 
-  const overallSentence = `${affectedCountSentence}, og alvorlighetsgraden er i snitt «${averageCategory}» (${Math.round(average)} poeng).`;
+  const overallSentence = `${directCount} av ${TOTAL_FUNCTIONS} kritiske samfunnsfunksjoner er påvirket, og alvorlighetsgraden er i snitt «${averageCategory}» (${Math.round(average)} poeng).`;
 
   const mostAffectedSentence = `Mest påvirket er ${mostAffected.label}, med ${Math.round(mostAffected.totalConsequenceValue)} poeng («${mostAffectedCategory}»).`;
 

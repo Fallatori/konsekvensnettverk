@@ -1,6 +1,9 @@
 import { describe, expect, it } from "vitest";
+import { FUNCTION_KEYS } from "@/lib/calc/catalog";
 import { describeOverview } from "@/lib/calc/describeOverview";
 import type { ComputedNode } from "@/lib/calc/recompute";
+
+const TOTAL_FUNCTIONS = FUNCTION_KEYS.length;
 
 function node(overrides: Partial<ComputedNode>): ComputedNode {
   return {
@@ -12,6 +15,7 @@ function node(overrides: Partial<ComputedNode>): ComputedNode {
     isHendelse: false,
     isDirect: true,
     subtype: "funksjon",
+    subtypeLabel: "Samfunnets funksjonalitet",
     consequenceCategory: "middels",
     originalConsequenceValue: 0,
     timedConsequenceValue: 0,
@@ -89,6 +93,19 @@ describe("describeOverview", () => {
         node({ id: "a", label: "Transport", totalConsequenceValue: 40 }),
       ],
     });
-    expect(result.observations.join(" ")).toContain("1 funksjon er påvirket");
+    expect(result.observations.join(" ")).toContain(`1 av ${TOTAL_FUNCTIONS} kritiske samfunnsfunksjoner er påvirket`);
+  });
+
+  it("counts only directly-hit nodes, not indirect-promoted ones, against the fixed catalog total", () => {
+    const result = describeOverview({
+      scenarioName: "S",
+      indirectEnabled: true,
+      timeframeDays: 1,
+      nodes: [
+        node({ id: "a", label: "Transport", isDirect: true, totalConsequenceValue: 40 }),
+        node({ id: "b", label: "Kraftforsyning", isDirect: false, totalConsequenceValue: 20 }),
+      ],
+    });
+    expect(result.observations.join(" ")).toContain(`1 av ${TOTAL_FUNCTIONS} kritiske samfunnsfunksjoner er påvirket`);
   });
 });

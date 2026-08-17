@@ -24,5 +24,5 @@ export async function GET(_request: Request, { params }: { params: Promise<{ id:
     scenarioToRecomputeInput(scenario, { indirectEnabled: false, timeframeDays: 1 }),
   );
 
-  return NextResponse.json({ scenario: { id: scenario.id, name: scenario.name }, ...result });
+  return NextResponse.json({ scenario: { id: scenario.id, name: scenario.name, riskArea: scenario.riskArea }, ...result });
 }

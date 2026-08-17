@@ -26,6 +26,7 @@ const RECOMPUTE_DEBOUNCE_MS = 300;
 export function ScenarioApp() {
   const [scenarios, setScenarios] = useState<ScenarioSummary[]>([]);
   const [scenarioId, setScenarioId] = useState<string | null>(null);
+  const [riskArea, setRiskArea] = useState<string>("");
   const [indirectEnabled, setIndirectEnabled] = useState(false);
   const [timeframeDays, setTimeframeDays] = useState<TimeframeDays>(1);
   const [overrides, setOverrides] = useState<Overrides>(EMPTY_OVERRIDES);
@@ -68,11 +69,13 @@ export function ScenarioApp() {
     setLastAction(null);
     resultRef.current = null; // no "previous" yet for this scenario
     setResult(null);
+    setRiskArea("");
 
     fetch(`/api/scenarios/${id}`)
       .then((r) => r.json())
-      .then((data: RecomputeResult) => {
+      .then((data: RecomputeResult & { scenario: { riskArea: string } }) => {
         setResult({ nodes: data.nodes, edges: data.edges });
+        setRiskArea(data.scenario.riskArea);
         setLoading(false);
       });
   }
@@ -223,6 +226,7 @@ export function ScenarioApp() {
             <OverviewPanel
               result={result}
               scenarioName={scenarioName}
+              riskArea={riskArea}
               indirectEnabled={indirectEnabled}
               timeframeDays={timeframeDays}
             />
@@ -231,6 +235,7 @@ export function ScenarioApp() {
           {selectedNode && (
             <NodeDetailPanel
               node={selectedNode}
+              riskArea={riskArea}
               editImpactSummary={editImpactSummary}
               onClose={() => setSelectedNodeId(null)}
               onCategoryChange={handleCategoryChange}

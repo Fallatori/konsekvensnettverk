@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import Script from "next/script";
 import { Providers } from "./providers";
 import "./globals.css";
 
@@ -24,7 +25,9 @@ export default function RootLayout({
         {/* Applies a saved theme choice (see useTheme in ScenarioApp.tsx)
             before first paint, so returning visitors on "lys"/"terminal"
             don't see a flash of the default dark "graf" theme. */}
-        <script
+        <Script
+          id="theme-init"
+          strategy="beforeInteractive"
           dangerouslySetInnerHTML={{
             __html:
               "(function(){try{var t=localStorage.getItem('konsekvensnettverk-theme');" +

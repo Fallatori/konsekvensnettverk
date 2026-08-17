@@ -9,11 +9,14 @@ import type { RecomputeResult } from "@/lib/calc/recompute";
 export function OverviewPanel({
   result,
   scenarioName,
+  riskArea,
   indirectEnabled,
   timeframeDays,
 }: {
   result: RecomputeResult;
   scenarioName: string;
+  /** Free text as authored in domainData.json - shown verbatim, never categorized. */
+  riskArea: string;
   indirectEnabled: boolean;
   timeframeDays: TimeframeDays;
 }) {
@@ -45,6 +48,7 @@ export function OverviewPanel({
 
       {isOpen && (
         <>
+          {riskArea && <p className="hint">Risikoområde: {riskArea}</p>}
           <p className="overviewBackground">{summary.background}</p>
           <ul className="overviewObservations">
             {summary.observations.map((observation, i) => (

@@ -1,6 +1,6 @@
 import { Handle, Position, type Node, type NodeProps } from "@xyflow/react";
 import type { ConsequenceLabel, NodeSubtype } from "@/lib/calc/mappings";
-import { NODE_SUBTYPE_LABEL } from "@/lib/calc/mappings";
+import type { CatalogSubtypeLabel } from "@/lib/calc/catalog/types";
 import { GaugeIndicator } from "@/components/graph/GaugeIndicator";
 import { useNodeHoverOpacity } from "@/components/graph/graphHoverContext";
 import { useCurrentTheme } from "@/lib/styles/context";
@@ -12,6 +12,10 @@ export type GaugeNodeData = {
   category: ConsequenceLabel | null;
   isHendelse: boolean;
   subtype: NodeSubtype;
+  /** The full samfunnsverdi name (e.g. "Samfunnets funksjonalitet") - same
+   * field NodeDetailPanel shows as "Undertype: ..." - null for the hendelse
+   * node, which has no catalog entry. */
+  subtypeLabel: CatalogSubtypeLabel | null;
 };
 
 export type GaugeNodeType = Node<GaugeNodeData, "gauge">;
@@ -134,7 +138,7 @@ function CardNode({ data, opacity, width }: { data: GaugeNodeData; opacity: numb
     <div className="cardNode" style={{ width, opacity, borderTopColor: subtypeColor }}>
       <Handle type="target" position={Position.Top} style={HIDDEN_HANDLE_STYLE} />
       <span className="cardNodePill" style={{ background: hexToRgba(subtypeColor, 0.14), color: subtypeColor }}>
-        {NODE_SUBTYPE_LABEL[data.subtype]}
+        {data.subtypeLabel}
       </span>
       <div className="cardNodeLabel">{data.label}</div>
       <div className="cardNodeSeverity">
