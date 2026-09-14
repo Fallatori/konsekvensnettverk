@@ -48,7 +48,7 @@ describe("describeOverview", () => {
         node({ id: "b", label: "Helse", totalConsequenceValue: 90 }),
       ],
     });
-    expect(result.observations.join(" ")).toContain("Mest påvirket er Helse");
+    expect(result.observations.join(" ")).toContain("Mest påvirket er **Helse**");
     expect(result.observations.join(" ")).toContain("90 poeng");
     expect(result.observations.join(" ")).toContain("svært store");
   });
@@ -93,7 +93,7 @@ describe("describeOverview", () => {
         node({ id: "a", label: "Transport", totalConsequenceValue: 40 }),
       ],
     });
-    expect(result.observations.join(" ")).toContain(`1 av ${TOTAL_FUNCTIONS} kritiske samfunnsfunksjoner er påvirket`);
+    expect(result.observations.join(" ")).toContain(`**1 av ${TOTAL_FUNCTIONS}** kritiske samfunnsfunksjoner er **direkte påvirket**`);
   });
 
   it("counts only directly-hit nodes, not indirect-promoted ones, against the fixed catalog total", () => {
@@ -106,6 +106,7 @@ describe("describeOverview", () => {
         node({ id: "b", label: "Kraftforsyning", isDirect: false, totalConsequenceValue: 20 }),
       ],
     });
-    expect(result.observations.join(" ")).toContain(`1 av ${TOTAL_FUNCTIONS} kritiske samfunnsfunksjoner er påvirket`);
+    expect(result.observations.join(" ")).toContain(`**1 av ${TOTAL_FUNCTIONS}** kritiske samfunnsfunksjoner er **direkte påvirket**`);
+    expect(result.observations.join(" ")).toContain(`**1 av ${TOTAL_FUNCTIONS}** kritiske samfunnsfunksjoner er **indirekte påvirket**`);
   });
 });

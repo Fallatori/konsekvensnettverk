@@ -22,22 +22,37 @@ function timeframeLabel(days: TimeframeDays): string {
 
 /** Plain-language recommendation, driven by how bad the worst-hit function
  * is and whether indirect ripple effects are even being looked at. */
-function suggestionFor(mostAffected: ComputedNode, indirectEnabled: boolean): string {
-  const category = nearestConsequenceLabel(mostAffected.totalConsequenceValue);
+function suggestionFor(
+  mostAffected: ComputedNode[],
+  indirectEnabled: boolean
+): string {
+  const maxValue = mostAffected[0].totalConsequenceValue;
+  const category = nearestConsequenceLabel(maxValue);
+
+  const labels = mostAffected
+    .map((n) => n.label)
+    .join(", ");
+
   const sentences: string[] = [];
 
   if (category === "svært store" || category === "store") {
     sentences.push(
-      `Vi anbefaler å prioritere ressurser mot ${mostAffected.label} først, siden konsekvensen der er alvorlig.`,
+      `Vi anbefaler å prioritere ressurser mot **${labels}** først, siden konsekvensen der er alvorlig.`
     );
   } else if (category === "middels") {
-    sentences.push(`Følg med på ${mostAffected.label} - konsekvensen der er moderat, men kan bli verre.`);
+    sentences.push(
+      `Følg med på **${labels}** - konsekvensen der er moderat, men kan bli verre.`
+    );
   } else {
-    sentences.push("Situasjonen ser foreløpig håndterbar ut for de fleste funksjoner.");
+    sentences.push(
+      "Situasjonen ser foreløpig håndterbar ut for de fleste funksjoner."
+    );
   }
 
   if (!indirectEnabled) {
-    sentences.push("Prøv å skru på indirekte følge for å se om konsekvensene sprer seg videre til andre funksjoner.");
+    sentences.push(
+      "Prøv å skru på indirekte følge for å se om konsekvensene sprer seg videre til andre funksjoner."
+    );
   }
 
   return sentences.join(" ");
@@ -83,18 +98,33 @@ export function describeOverview({
 
   const average = affected.reduce((sum, n) => sum + n.totalConsequenceValue, 0) / affected.length;
   const averageCategory = nearestConsequenceLabel(average);
-  const mostAffected = affected.reduce((max, n) => (n.totalConsequenceValue > max.totalConsequenceValue ? n : max));
-  const mostAffectedCategory = nearestConsequenceLabel(mostAffected.totalConsequenceValue);
+
+  const maxConsequenceValue = Math.max(
+    ...affected.map((n) => n.totalConsequenceValue)
+  );
+
+  const mostAffected = affected.filter(
+    (n) => n.totalConsequenceValue === maxConsequenceValue
+  );
+
+  const mostAffectedCategory = nearestConsequenceLabel(maxConsequenceValue);
+
+  const mostAffectedLabels = mostAffected.map((n) => n.label).join(", ");
 
   // Directly authored on the scenario, not "currently has nonzero severity" -
   // so it stays stable regardless of overrides or the indirect toggle.
   const directCount = functionNodes.filter((n) => n.isDirect).length;
+  const indirectCount = functionNodes.filter((n) => !n.isDirect).length;
 
-  const overallSentence = `${directCount} av ${TOTAL_FUNCTIONS} kritiske samfunnsfunksjoner er påvirket, og alvorlighetsgraden er i snitt «${averageCategory}» (${Math.round(average)} poeng).`;
+  const direktSentence = `**${directCount} av ${TOTAL_FUNCTIONS}** kritiske samfunnsfunksjoner er **direkte påvirket**.`;
 
-  const mostAffectedSentence = `Mest påvirket er ${mostAffected.label}, med ${Math.round(mostAffected.totalConsequenceValue)} poeng («${mostAffectedCategory}»).`;
+  const alvorligSentence = `Gjennomsnittlig **alvorlighetsgrad** for direkte påvirkede funksjoner er **«${averageCategory}»** (${Math.round(average)} poeng).`;
+
+  const indirektSentence =`**${indirectCount} av ${TOTAL_FUNCTIONS}** kritiske samfunnsfunksjoner er **indirekte påvirket**.`;
+
+  const mostAffectedSentence = `Mest påvirket er **${mostAffectedLabels}**, med ${Math.round(maxConsequenceValue)} poeng («${mostAffectedCategory}»).`;
 
   const suggestion = suggestionFor(mostAffected, indirectEnabled);
 
-  return { background, observations: [overallSentence, mostAffectedSentence, suggestion] };
+  return { background, observations: [direktSentence, alvorligSentence, indirektSentence, mostAffectedSentence, suggestion] };
 }
