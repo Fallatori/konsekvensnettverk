@@ -14,6 +14,7 @@ import type { ConsequenceLabel } from "@/lib/calc/mappings";
 import { TIMEFRAME_DAYS, type TimeframeDays } from "@/lib/calc/catalog";
 import { EDGE_STYLE_OPTIONS, THEME_OPTIONS } from "@/lib/styles/tokens";
 import { EdgeStyleProvider, ThemeProvider, useEdgeStyle, useTheme } from "@/lib/styles/context";
+import { applyLanguage, LANGUAGE_OPTIONS, useLanguage, WIDGET_ELEMENT_ID } from "@/lib/i18n/googleTranslate";
 
 type ScenarioSummary = { id: string; name: string };
 type Overrides = {
@@ -39,11 +40,20 @@ export function ScenarioApp() {
   const [scenariosError, setScenariosError] = useState<string | null>(null);
   const [theme, setTheme] = useTheme();
   const [edgeStyle, setEdgeStyle] = useEdgeStyle();
+  const [language, setLanguage] = useLanguage();
 
   const resultRef = useRef<RecomputeResult | null>(null);
   useEffect(() => {
     resultRef.current = result;
   }, [result]);
+
+  // Scenario data loads and updates asynchronously (initial fetch, scenario
+  // switches, debounced recompute) - re-drive the translate widget whenever
+  // it changes, or freshly-rendered Norwegian text sits untranslated until
+  // something else happens to retrigger it (e.g. a refresh).
+  useEffect(() => {
+    if (result) applyLanguage(language);
+  }, [result, language]);
 
   // Read fresh inside the debounced recompute effect below without adding
   // lastAction to its dependency array (that would fire an extra recompute
@@ -154,6 +164,10 @@ export function ScenarioApp() {
     <ThemeProvider value={theme}>
     <EdgeStyleProvider value={edgeStyle}>
     <div className="appShell">
+      {/* Renders Google's Website Translator widget invisibly - the
+          SegmentedControl below drives it, so its own dropdown UI is hidden
+          (see globals.css). */}
+      <div id={WIDGET_ELEMENT_ID} style={{ display: "none" }} />
       <header className="topBar">
         <div className="topBarGroup">
           <span className="controlLabel">Scenario</span>
@@ -208,10 +222,16 @@ export function ScenarioApp() {
           <SegmentedControl ariaLabel="Forbindelse" options={EDGE_STYLE_OPTIONS} value={edgeStyle} onChange={setEdgeStyle} />
         </div>
 
+        <div className="topBarGroup notranslate">
+          <span className="controlLabel">Språk</span>
+          <SegmentedControl ariaLabel="Språk" options={LANGUAGE_OPTIONS} value={language} onChange={setLanguage} />
+          {language === "en" && <span className="notranslate translateNotice">Translated by Google</span>}
+        </div>
+
         <div className="topBarSpacer" />
 
         <button type="button" className="logoutButton" onClick={() => signOut({ callbackUrl: "/logg-inn" })}>
-          <span className="material-symbols-outlined" aria-hidden="true">
+          <span className="material-symbols-outlined notranslate" aria-hidden="true">
             logout
           </span>
           Logg ut

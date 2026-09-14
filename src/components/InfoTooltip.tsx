@@ -18,7 +18,7 @@ export function InfoTooltip({
 }) {
   return (
     <span className="infoTooltip" tabIndex={0}>
-      <span className="material-symbols-outlined" aria-hidden="true">
+      <span className="material-symbols-outlined notranslate" aria-hidden="true">
         info
       </span>
       <span

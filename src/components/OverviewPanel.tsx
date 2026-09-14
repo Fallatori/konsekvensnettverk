@@ -41,7 +41,7 @@ export function OverviewPanel({
         onClick={() => setIsOpen((open) => !open)}
       >
         <h2>Oversikt</h2>
-        <span className="material-symbols-outlined" aria-hidden="true">
+        <span className="material-symbols-outlined notranslate" aria-hidden="true">
           {isOpen ? "expand_less" : "expand_more"}
         </span>
       </button>

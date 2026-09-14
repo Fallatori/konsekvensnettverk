@@ -34,7 +34,12 @@ export type DirectEdgeInput = {
 };
 
 export type RecomputeOverrides = {
-  /** nodeId -> overridden consequence category for this what-if request. */
+  /** nodeId -> overridden consequence category for this what-if request.
+   * Works for direct node ids as well as synthesized indirect node ids
+   * (`indirect:<functionKey>`, see ComputedNode.id) - an indirect override
+   * still ripples into other already-active nodes' indirectConsequenceValue,
+   * but (unlike a direct override) can never activate a node that isn't
+   * already part of the current recompute's active set. */
   nodeCategories?: Record<string, ConsequenceLabel>;
   /** edgeId -> overridden connection level for this what-if request - wins
    * over the target node's time-adjusted severity when present. */
@@ -188,6 +193,10 @@ export function recompute(input: RecomputeInput, options: RecomputeOptions = {})
     ReturnType<typeof formulas.listIndirectContributions>
   >();
   const promoted = new Map<string, ActiveEntry>();
+  // functionKeys reachable directly from the direct-hit set alone (round 1) -
+  // tracked so the final override-aware value pass below knows which
+  // promoted nodes may still act as a source (see that pass for why).
+  const round1PromotedKeys = new Set<string>();
 
   if (input.indirectEnabled) {
     // --- Round 1: indirect, sources = original directly-hit nodes only ---
@@ -209,10 +218,16 @@ export function recompute(input: RecomputeInput, options: RecomputeOptions = {})
             node: null,
           }),
         );
+        round1PromotedKeys.add(functionKey);
       }
     }
 
     // --- Round 2: reevaluation, sources = originals + round-1 promoted ---
+    // This pass (and only this pass) decides WHICH functionKeys end up
+    // active - it stays based on natural, un-overridden categories, so that
+    // overriding an indirect node's category (below) can change values on
+    // the existing graph but can never activate a node that wouldn't
+    // otherwise be there (no synthetic "round 3").
     const round2Sources = [...directActive.values(), ...round1Promoted.values()].map(asSource);
 
     for (const functionKey of functionKeys) {
@@ -244,6 +259,51 @@ export function recompute(input: RecomputeInput, options: RecomputeOptions = {})
     // Stop. No round 3, even if a round-2-promoted node could propagate further.
   }
 
+  // --- Final value pass: apply overrides to indirect nodes now that the
+  // active set (topology, above) is locked in ---
+  // An override on a round-1-promoted node's category still ripples to other
+  // already-active nodes, exactly like a direct-node override does - it
+  // re-enters as a source below. An override on a round-2-only node only
+  // changes that node's own displayed values: round-2 nodes were never
+  // sources to begin with (that's what "no round 3" means), so there's
+  // nothing left for it to ripple into - the active node set still can't
+  // grow either way.
+  const promotedFinal = new Map<string, ActiveEntry>();
+  const indirectContributionsByTargetFinal = new Map<
+    string,
+    ReturnType<typeof formulas.listIndirectContributions>
+  >();
+
+  if (input.indirectEnabled) {
+    for (const [functionKey, entry] of promoted) {
+      const override = overrides.nodeCategories?.[`indirect:${functionKey}`];
+      promotedFinal.set(
+        functionKey,
+        override && override !== entry.category
+          ? buildActiveEntry({
+              functionKey,
+              category: override,
+              originalConsequenceValue: 0,
+              isDirect: false,
+              node: null,
+            })
+          : entry,
+      );
+    }
+
+    const round1Sources = [...promotedFinal.entries()]
+      .filter(([functionKey]) => round1PromotedKeys.has(functionKey))
+      .map(([, entry]) => entry);
+    const finalSources = [...directActive.values(), ...round1Sources].map(asSource);
+
+    for (const functionKey of [...directActive.keys(), ...promotedFinal.keys()]) {
+      indirectContributionsByTargetFinal.set(
+        functionKey,
+        formulas.listIndirectContributions(functionKey, finalSources),
+      );
+    }
+  }
+
   // --- Assemble final nodes ---
   const nodes: ComputedNode[] = [
     {
@@ -270,7 +330,7 @@ export function recompute(input: RecomputeInput, options: RecomputeOptions = {})
 
   for (const entry of directActive.values()) {
     const indirectValue = input.indirectEnabled
-      ? formulas.maxIndirectContribution(indirectContributionsByTarget.get(entry.functionKey) ?? []).points
+      ? formulas.maxIndirectContribution(indirectContributionsByTargetFinal.get(entry.functionKey) ?? []).points
       : 0;
     const totalConsequenceValue = Math.min(100, entry.timedConsequenceValue + indirectValue);
     totalValueByNodeId.set(entry.node!.id, totalConsequenceValue);
@@ -292,9 +352,9 @@ export function recompute(input: RecomputeInput, options: RecomputeOptions = {})
     });
   }
 
-  for (const entry of promoted.values()) {
+  for (const entry of promotedFinal.values()) {
     const indirectValue = formulas.maxIndirectContribution(
-      indirectContributionsByTarget.get(entry.functionKey) ?? [],
+      indirectContributionsByTargetFinal.get(entry.functionKey) ?? [],
     ).points;
     nodes.push({
       id: `indirect:${entry.functionKey}`,
@@ -336,9 +396,9 @@ export function recompute(input: RecomputeInput, options: RecomputeOptions = {})
   if (input.indirectEnabled) {
     const functionKeyToNodeId = new Map<string, string>();
     for (const entry of directActive.values()) functionKeyToNodeId.set(entry.functionKey, entry.node!.id);
-    for (const entry of promoted.values()) functionKeyToNodeId.set(entry.functionKey, `indirect:${entry.functionKey}`);
+    for (const entry of promotedFinal.values()) functionKeyToNodeId.set(entry.functionKey, `indirect:${entry.functionKey}`);
 
-    for (const [targetFunctionKey, contributions] of indirectContributionsByTarget) {
+    for (const [targetFunctionKey, contributions] of indirectContributionsByTargetFinal) {
       const targetNodeId = functionKeyToNodeId.get(targetFunctionKey);
       if (!targetNodeId) continue; // target never got activated this request
       for (const contribution of contributions) {
