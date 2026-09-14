@@ -5,6 +5,8 @@ import type { TimeframeDays } from "@/lib/calc/catalog";
 import { describeOverview } from "@/lib/calc/describeOverview";
 import { nearestConsequenceLabel } from "@/lib/calc/mappings";
 import type { RecomputeResult } from "@/lib/calc/recompute";
+import { RichText } from "@/components/RichText";
+
 
 export function OverviewPanel({
   result,
@@ -41,7 +43,7 @@ export function OverviewPanel({
         onClick={() => setIsOpen((open) => !open)}
       >
         <h2>Oversikt</h2>
-        <span className="material-symbols-outlined notranslate" aria-hidden="true">
+        <span className="material-symbols-outlined" aria-hidden="true">
           {isOpen ? "expand_less" : "expand_more"}
         </span>
       </button>
@@ -52,7 +54,9 @@ export function OverviewPanel({
           <p className="overviewBackground">{summary.background}</p>
           <ul className="overviewObservations">
             {summary.observations.map((observation, i) => (
-              <li key={i}>{observation}</li>
+              <li key={i}>
+                <RichText text={observation} />
+              </li>
             ))}
           </ul>
 

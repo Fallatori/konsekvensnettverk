@@ -145,7 +145,12 @@ function CardNode({ data, opacity, width }: { data: GaugeNodeData; opacity: numb
         <div className="cardNodeSeverityTrack">
           <div className="cardNodeSeverityFill" style={{ width: `${percent}%`, background: severityColor }} />
         </div>
-        <span className="cardNodeSeverityLabel" style={{ color: severityColor }}>
+        {/* notranslate: this text is recomputed and re-rendered on every
+            edit (see NodeDetailPanel's dl for the same fix) - Google
+            Translate's DOM rewriting breaks React's ability to update it in
+            place afterwards, so the card freezes at a stale value instead of
+            reflecting the new consequence level. */}
+        <span className="cardNodeSeverityLabel notranslate" style={{ color: severityColor }}>
           {category} · {percent}%
         </span>
       </div>
@@ -177,7 +182,10 @@ function RingCardNode({ data, opacity, width }: { data: GaugeNodeData; opacity: 
       </div>
       <div className="cardNodeTerminalText">
         <div className="cardNodeTerminalLabel">{data.label}</div>
-        <div className="cardNodeTerminalStatus">
+        {/* notranslate: see the matching CardNode fix above - this also
+            updates on every edit and needs to survive Google Translate's DOM
+            rewriting. */}
+        <div className="cardNodeTerminalStatus notranslate">
           {data.isHendelse ? "ROT // HENDELSE" : `STATUS: ${category.toUpperCase()}`}
         </div>
       </div>
