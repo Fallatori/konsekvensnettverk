@@ -26,7 +26,7 @@ export function EdgeDetailPopover({
       <div className="panelHeader">
         <h2>Forbindelse</h2>
         <button type="button" onClick={onClose} aria-label="Lukk">
-          <span className="material-symbols-outlined" aria-hidden="true">
+          <span className="material-symbols-outlined notranslate" aria-hidden="true">
             close
           </span>
         </button>
@@ -38,7 +38,9 @@ export function EdgeDetailPopover({
         <strong>Type:</strong> {edge.kind === "DIRECT" ? "Direkte følge" : "Indirekte følge"}
       </p>
       <p>
-        <strong>Styrke:</strong> {strength}
+        {/* notranslate: same fixed ConsequenceLabel taxonomy as
+            NodeDetailPanel's valueList/select - see the note there. */}
+        <strong>Styrke:</strong> <span className="notranslate">{strength}</span>
       </p>
     </div>
   );

@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { recompute } from "@/lib/calc/recompute";
 import type { CatalogEntry, FunctionalityTable, IndirectImpactRow } from "@/lib/calc/catalog/types";
+import type { ConsequenceLabel } from "@/lib/calc/mappings";
 
 // timeframeDays=1 makes ComputeTimedConsequenceMethod an identity (F_dx==F_d1
 // whenever dx==1, regardless of table contents) - so these fixture tables can
@@ -278,6 +279,136 @@ describe("recompute - direct edge follows the target node's time-adjusted severi
     const result = run(1, { connectionLevels: { "edge-1": 2 } });
     const edge = result.edges.find((e) => e.id === "edge-1");
     expect(edge!.connectionLevel).toBe(2);
+  });
+});
+
+describe("recompute - overriding an indirect (promoted) node's category", () => {
+  // A is directly hit -> promotes B in round 1. B -> C in round 2. C's row
+  // could reach D, mirroring the "round 3 is never run" guarantee - used
+  // below to prove an override can't circumvent it either.
+  const A: CatalogEntry = {
+    functionKey: "A",
+    label: "A",
+    type: "funksjon",
+    subtype: "funksjon",
+    subtypeLabel: "Samfunnets funksjonalitet",
+    definition: "test fixture",
+    functionalityTable: FLAT_TABLE,
+    indirectImpactRow: { ...emptyRow(), "svært store": { B: "små" } },
+  };
+  const B: CatalogEntry = {
+    functionKey: "B",
+    label: "B",
+    type: "funksjon",
+    subtype: "funksjon",
+    subtypeLabel: "Samfunnets funksjonalitet",
+    definition: "test fixture",
+    functionalityTable: FLAT_TABLE,
+    indirectImpactRow: {
+      ...emptyRow(),
+      små: { C: "svært små" }, // B's natural (un-overridden) round-1 category
+      "svært store": { C: "svært store", A: "middels" }, // only reachable via an override
+    },
+  };
+  const C: CatalogEntry = {
+    functionKey: "C",
+    label: "C",
+    type: "funksjon",
+    subtype: "funksjon",
+    subtypeLabel: "Samfunnets funksjonalitet",
+    definition: "test fixture",
+    functionalityTable: FLAT_TABLE,
+    indirectImpactRow: { ...emptyRow(), "svært store": { D: "store" } }, // would reach D in a hypothetical round 3
+  };
+  const D: CatalogEntry = {
+    functionKey: "D",
+    label: "D",
+    type: "funksjon",
+    subtype: "funksjon",
+    subtypeLabel: "Samfunnets funksjonalitet",
+    definition: "test fixture",
+    functionalityTable: FLAT_TABLE,
+    indirectImpactRow: emptyRow(),
+  };
+
+  const CATALOG: Record<string, CatalogEntry> = { A, B, C, D };
+  const catalogLookup = (functionKey: string) => CATALOG[functionKey];
+  const functionKeys = ["A", "B", "C", "D"];
+
+  function run(overrides?: { nodeCategories?: Record<string, ConsequenceLabel> }) {
+    return recompute(
+      {
+        hendelseId: "hendelse-1",
+        hendelseLabel: "Scenario 1",
+        hendelseDescription: "",
+        hendelseSubtype: "hazards",
+        directNodes: [
+          {
+            id: "node-A",
+            label: "A",
+            description: "",
+            functionKey: "A",
+            subtype: "funksjon",
+            baseConsequenceCategory: "svært store",
+          },
+        ],
+        directEdges: [],
+        overrides,
+        indirectEnabled: true,
+        timeframeDays: 1,
+      },
+      { catalogLookup, functionKeys },
+    );
+  }
+
+  it("baseline: B promoted at 'små' (round 1), C promoted at 'svært små' (round 2), D absent", () => {
+    const result = run();
+    expect(result.nodes.find((n) => n.functionKey === "B")!.consequenceCategory).toBe("små");
+    expect(result.nodes.find((n) => n.functionKey === "C")!.consequenceCategory).toBe("svært små");
+    expect(result.nodes.find((n) => n.functionKey === "D")).toBeUndefined();
+  });
+
+  it("overriding indirect:B ripples into C's and A's indirectConsequenceValue, without adding D", () => {
+    const result = run({ nodeCategories: { "indirect:B": "svært store" } });
+
+    // The override itself, shown on B's own category.
+    expect(result.nodes.find((n) => n.functionKey === "B")!.consequenceCategory).toBe("svært store");
+    // B acting as source with its overridden category raises what it feeds
+    // into C (1pt "svært små" -> 20pt "svært store") and into A (0 -> 10pt
+    // "middels") - both already-active nodes, per B's row above.
+    expect(result.nodes.find((n) => n.functionKey === "C")!.indirectConsequenceValue).toBe(20);
+    expect(result.nodes.find((n) => n.functionKey === "A")!.indirectConsequenceValue).toBe(10);
+    // Still no round 3: D never appears, even though B's overridden value
+    // pushed C's total higher.
+    expect(result.nodes.find((n) => n.functionKey === "D")).toBeUndefined();
+  });
+
+  it("overriding indirect:C (round-2-only) changes only its own values - B, A, and the D guard are unaffected", () => {
+    const baseline = run();
+    const baselineB = baseline.nodes.find((n) => n.functionKey === "B")!;
+    const baselineA = baseline.nodes.find((n) => n.functionKey === "A")!;
+
+    const result = run({ nodeCategories: { "indirect:C": "svært store" } });
+
+    expect(result.nodes.find((n) => n.functionKey === "C")!.consequenceCategory).toBe("svært store");
+    // C was never a source (round-2-only), so overriding it can't ripple
+    // anywhere - B and A read exactly as in the baseline.
+    expect(result.nodes.find((n) => n.functionKey === "B")!.indirectConsequenceValue).toBe(
+      baselineB.indirectConsequenceValue,
+    );
+    expect(result.nodes.find((n) => n.functionKey === "A")!.indirectConsequenceValue).toBe(
+      baselineA.indirectConsequenceValue,
+    );
+    // C's row would reach D at "svært store" if C could source - it still
+    // can't, override or not.
+    expect(result.nodes.find((n) => n.functionKey === "D")).toBeUndefined();
+  });
+
+  it("overriding an indirect node that never became active this request is simply inert", () => {
+    // D is never promoted in this fixture (see above) - an override
+    // addressed at it should not throw or fabricate a node.
+    const result = run({ nodeCategories: { "indirect:D": "svært store" } });
+    expect(result.nodes.find((n) => n.functionKey === "D")).toBeUndefined();
   });
 });
 

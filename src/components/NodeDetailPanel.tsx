@@ -28,7 +28,11 @@ export function NodeDetailPanel({
   onCategoryChange: (nodeId: string, category: ConsequenceLabel) => void;
   onResetOverrides: () => void;
 }) {
-  const canEdit = node.isDirect && !node.isHendelse;
+  // Both direct and indirect (promoted) nodes are editable - an indirect
+  // override still ripples into other already-active nodes' indirect
+  // consequence values, but (see recompute.ts) can never activate a node
+  // that isn't already part of the current graph.
+  const canEdit = !node.isHendelse;
 
   return (
     <div className="panel">
@@ -41,7 +45,7 @@ export function NodeDetailPanel({
           {node.definition && <InfoTooltip text={node.definition} placement="below" />}
         </h2>
         <button type="button" onClick={onClose} aria-label="Lukk">
-          <span className="material-symbols-outlined" aria-hidden="true">
+          <span className="material-symbols-outlined notranslate" aria-hidden="true">
             close
           </span>
         </button>
@@ -75,7 +79,13 @@ export function NodeDetailPanel({
       )}
 
       {!node.isHendelse && (
-        <dl className="valueList">
+        // notranslate: these parenthetical words are the fixed
+        // ConsequenceLabel taxonomy ("ingen".."svært store"), not prose -
+        // Google Translate re-machine-translates them independently on
+        // every re-render, which can drift into a different (garbled)
+        // result each time (e.g. "middels" -> "ved hjelp av"). Left
+        // untranslated, they stay identical everywhere, direct or indirect.
+        <dl className="valueList notranslate">
           <dt>
             Opprinnelig konsekvensverdi (V₁)
             <InfoTooltip
@@ -126,6 +136,7 @@ export function NodeDetailPanel({
               <InfoTooltip text='Hvor alvorlig konsekvensen er, valgt fra en skala fra "ingen" til "svært store". Dette valget bestemmer start-poengsummen (V₁) som alle de andre tallene under regnes ut fra.' />
             </span>
             <select
+              className="notranslate"
               value={node.consequenceCategory ?? "ingen"}
               onChange={(e) => onCategoryChange(node.id, e.target.value as ConsequenceLabel)}
             >
@@ -141,10 +152,6 @@ export function NodeDetailPanel({
             Tilbakestill til standardverdier
           </button>
         </div>
-      )}
-
-      {!canEdit && !node.isHendelse && (
-        <p className="hint">Denne funksjonen er kun indirekte påvirket og kan ikke redigeres direkte.</p>
       )}
 
       {editImpactSummary && <p className="editImpact">{editImpactSummary}</p>}

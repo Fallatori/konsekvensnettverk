@@ -225,11 +225,32 @@ a {
   color: var(--control-muted);
 }
 
+.translateNotice {
+  font-size: 0.65rem;
+  color: var(--control-muted);
+  font-style: italic;
+}
+
 .topBarDivider {
   width: 1px;
   height: 2.25rem;
   background: var(--topbar-border);
   align-self: center;
+}
+
+/* Google Website Translator (see src/lib/i18n/googleTranslate.ts) is driven
+   entirely by the Språk toggle above, so its own banner/dropdown/hover
+   furniture is hidden rather than shown alongside it. */
+.goog-te-banner-frame,
+body > .skiptranslate {
+  display: none !important;
+}
+body {
+  top: 0 !important;
+}
+.goog-text-highlight {
+  background: none !important;
+  box-shadow: none !important;
 }
 
 .topBarSpacer {
