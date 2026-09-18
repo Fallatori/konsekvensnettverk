@@ -23,13 +23,14 @@ export function GaugeIndicator({
   category,
   size = 64,
   label,
-  fillColor = "#ffffff",
+  fillColor = "var(--control-track)",
 }: {
   category: ConsequenceLabel;
   size?: number;
   label?: string;
-  /** Node's subtype color (see lib/styles/tokens.ts) - the inner circle
-   * fill in the "graf" ring, unused by the other two variants. */
+  /** Neutral inner-circle fill for the "graf" ring (see NODE_FILL_IMPACT/
+   * NODE_FILL_SCENARIO in lib/styles/tokens.ts) - unused by the other two
+   * variants. */
   fillColor?: string;
 }) {
   const theme = useCurrentTheme();
@@ -49,9 +50,14 @@ export function GaugeIndicator({
 
   const unfilledStrokeWidth = Math.max(1, strokeWidth * 0.18);
 
+  // Inner fill circle stays inset from the segment ring by the full stroke
+  // width (not just half) so the wrapped label text below never overlaps the
+  // colored severity segments.
+  const innerRadius = center - strokeWidth;
+
   return (
     <svg width={size} height={size} viewBox={`0 0 ${size} ${size}`} role="img" aria-label={label ?? category}>
-      <circle cx={center} cy={center} r={center - strokeWidth} fill={fillColor} />
+      <circle cx={center} cy={center} r={innerRadius} fill={fillColor} />
       {SEGMENT_COLORS.map((segmentColor, i) => {
         const rotation = i * (360 / SEGMENT_COUNT) - 90; // start at the top
         const isFilled = i < filled;
@@ -69,6 +75,29 @@ export function GaugeIndicator({
           />
         );
       })}
+      {label && (
+        <foreignObject x={center - innerRadius} y={center - innerRadius} width={innerRadius * 2} height={innerRadius * 2}>
+          <div
+            // @ts-expect-error -- xmlns is valid on a foreignObject's HTML child but not in React's JSX typings.
+            xmlns="http://www.w3.org/1999/xhtml"
+            style={{
+              width: "100%",
+              height: "100%",
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "center",
+              textAlign: "center",
+              padding: strokeWidth * 0.3,
+              fontSize: Math.max(9, size * 0.13),
+              lineHeight: 1.15,
+              color: "var(--foreground)",
+              overflow: "hidden",
+            }}
+          >
+            {label}
+          </div>
+        </foreignObject>
+      )}
     </svg>
   );
 }

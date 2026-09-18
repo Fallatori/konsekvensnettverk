@@ -1,19 +1,12 @@
 "use client";
 
 /**
- * React providers/hooks for the two independently selectable style axes
- * (visual theme, connection style). Pure tokens/types live in tokens.ts -
- * this file only wires them into context + localStorage persistence.
+ * React provider/hook for the visual theme. Pure tokens/types live in
+ * tokens.ts - this file only wires them into context + localStorage
+ * persistence.
  */
 import { createContext, useContext, useEffect, useState } from "react";
-import {
-  EDGE_STYLE_STORAGE_KEY,
-  isEdgeStyle,
-  isTheme,
-  THEME_STORAGE_KEY,
-  type EdgeStyle,
-  type Theme,
-} from "@/lib/styles/tokens";
+import { isTheme, THEME_STORAGE_KEY, type Theme } from "@/lib/styles/tokens";
 
 // ---------------------------------------------------------------------------
 // Theme
@@ -53,35 +46,4 @@ export function useTheme(): [Theme, (theme: Theme) => void] {
   }, [theme]);
 
   return [theme, setTheme];
-}
-
-// ---------------------------------------------------------------------------
-// Edge (connection) style
-// ---------------------------------------------------------------------------
-
-const EdgeStyleContext = createContext<EdgeStyle>("standard");
-
-export const EdgeStyleProvider = EdgeStyleContext.Provider;
-
-/** Read by FloatingEdge to pick how the connection line is drawn. */
-export function useCurrentEdgeStyle(): EdgeStyle {
-  return useContext(EdgeStyleContext);
-}
-
-function readStoredEdgeStyle(): EdgeStyle {
-  if (typeof window === "undefined") return "standard";
-  const stored = window.localStorage.getItem(EDGE_STYLE_STORAGE_KEY);
-  return isEdgeStyle(stored) ? stored : "standard";
-}
-
-/** Persists the chosen connection style to localStorage. Owned by
- * ScenarioApp, which feeds the value into <EdgeStyleProvider>. */
-export function useEdgeStyle(): [EdgeStyle, (style: EdgeStyle) => void] {
-  const [edgeStyle, setEdgeStyle] = useState<EdgeStyle>(readStoredEdgeStyle);
-
-  useEffect(() => {
-    window.localStorage.setItem(EDGE_STYLE_STORAGE_KEY, edgeStyle);
-  }, [edgeStyle]);
-
-  return [edgeStyle, setEdgeStyle];
 }

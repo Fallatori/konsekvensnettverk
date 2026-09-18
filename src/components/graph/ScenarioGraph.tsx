@@ -17,10 +17,10 @@ import { NODE_SUBTYPES, nearestConsequenceLabel } from "@/lib/calc/mappings";
 import { GaugeNode, type GaugeNodeType } from "@/components/graph/GaugeNode";
 import { FloatingEdge, EDGE_WIRE_COLOR, type FloatingEdgeType } from "@/components/graph/FloatingEdge";
 import { ZoneBackgroundNode, type ZoneBackgroundNodeType, type ZoneKind } from "@/components/graph/ZoneBackgroundNode";
-import { SeverityLegend } from "@/components/graph/SeverityLegend";
+import { GraphLegend } from "@/components/graph/GraphLegend";
 import { GraphHoverProvider } from "@/components/graph/graphHoverContext";
 import { useCurrentTheme } from "@/lib/styles/context";
-import { THEME_NODE_LAYOUT, type NodeLayoutSpec } from "@/lib/styles/tokens";
+import { DIRECT_EDGE_WIDTH, INDIRECT_EDGE_WIDTH, THEME_NODE_LAYOUT, type NodeLayoutSpec } from "@/lib/styles/tokens";
 
 const nodeTypes = { gauge: GaugeNode, zoneBackground: ZoneBackgroundNode };
 const edgeTypes = { floating: FloatingEdge };
@@ -37,7 +37,6 @@ const CHARGE_MAX_DISTANCE = 700;
 const COLUMN_ANCHOR_STRENGTH = 0.55;
 const ROW_ANCHOR_STRENGTH = 0.06;
 
-const INDIRECT_EDGE_WIDTH = 2;
 const MAX_INDIRECT_POINTS = 20; // INDIRECT_IMPACT_POINTS["svært store"] - see lib/calc/mappings.ts
 
 // Extra top padding (vs the other three sides), in fixed screen pixels so it
@@ -375,11 +374,13 @@ function FitViewOnDataChange({ nodeIdsKey, fitNodes }: { nodeIdsKey: string; fit
 export function ScenarioGraph({
   nodes,
   edges,
+  indirectEnabled,
   onNodeClick,
   onEdgeClick,
 }: {
   nodes: ComputedNode[];
   edges: ComputedEdge[];
+  indirectEnabled: boolean;
   onNodeClick?: (nodeId: string) => void;
   onEdgeClick?: (edgeId: string) => void;
 }) {
@@ -426,7 +427,7 @@ export function ScenarioGraph({
       data: { kind: edge.kind },
       style:
         edge.kind === "DIRECT"
-          ? { strokeWidth: 1 + edge.connectionLevel }
+          ? { strokeWidth: DIRECT_EDGE_WIDTH }
           : // Indirect strength reads as opacity, not width - width stays
             // fixed so the two edge kinds are easy to tell apart
             // regardless of indirect-impact strength.
@@ -500,7 +501,7 @@ export function ScenarioGraph({
           <Controls showInteractive={false} />
         </ReactFlow>
       </GraphHoverProvider>
-      <SeverityLegend />
+      <GraphLegend indirectEnabled={indirectEnabled} />
     </div>
   );
 }

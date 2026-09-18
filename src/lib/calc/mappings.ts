@@ -78,6 +78,25 @@ export const CONSEQUENCE_VALUE: Record<ConsequenceLabel, number> = {
   "svært store": 100,
 };
 
+/** Hand-translated English labels for the graph's node cards (GaugeNode.tsx:
+ * "store · 80%" in "lys", "STATUS: STORE" in "terminal") - rendered directly
+ * instead of left to Google Translate. These labels re-render on every
+ * recompute (timeframe/indirect/override changes), and Google's widget only
+ * does a fresh translation pass on a genuine language *switch*; a same-
+ * language re-render of already-visited DOM either goes untranslated or (if
+ * forced to remount) still isn't picked up - confirmed empirically, not a
+ * timing issue. Below the graph, this pairs with the ConsequenceLabel
+ * union's Norwegian values, which are also used verbatim (see the module
+ * comment) - no translation layer existed for them before this. */
+export const CONSEQUENCE_LABEL_EN: Record<ConsequenceLabel, string> = {
+  ingen: "none",
+  "svært små": "very small",
+  små: "small",
+  middels: "medium",
+  store: "large",
+  "svært store": "very large",
+};
+
 /** An edge's connection level is never authored - it is always the severity
  * category's ordinal position in CONSEQUENCE_LABELS (0 "ingen" .. 5 "svært
  * store"). Used by the seed script for the persisted baseline and by

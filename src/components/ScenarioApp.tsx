@@ -12,9 +12,15 @@ import { describeEditImpact, type LastAction } from "@/lib/calc/describeEditImpa
 import type { RecomputeResult } from "@/lib/calc/recompute";
 import type { ConsequenceLabel } from "@/lib/calc/mappings";
 import { TIMEFRAME_DAYS, type TimeframeDays } from "@/lib/calc/catalog";
-import { EDGE_STYLE_OPTIONS, THEME_OPTIONS } from "@/lib/styles/tokens";
-import { EdgeStyleProvider, ThemeProvider, useEdgeStyle, useTheme } from "@/lib/styles/context";
-import { applyLanguage, LANGUAGE_OPTIONS, useLanguage, WIDGET_ELEMENT_ID } from "@/lib/i18n/googleTranslate";
+import { THEME_OPTIONS } from "@/lib/styles/tokens";
+import { ThemeProvider, useTheme } from "@/lib/styles/context";
+import {
+  applyLanguage,
+  LANGUAGE_OPTIONS,
+  LanguageProvider,
+  useLanguage,
+  WIDGET_ELEMENT_ID,
+} from "@/lib/i18n/googleTranslate";
 
 type ScenarioSummary = { id: string; name: string };
 type Overrides = {
@@ -39,7 +45,6 @@ export function ScenarioApp() {
   const [loading, setLoading] = useState(false);
   const [scenariosError, setScenariosError] = useState<string | null>(null);
   const [theme, setTheme] = useTheme();
-  const [edgeStyle, setEdgeStyle] = useEdgeStyle();
   const [language, setLanguage] = useLanguage();
 
   const resultRef = useRef<RecomputeResult | null>(null);
@@ -50,10 +55,14 @@ export function ScenarioApp() {
   // Scenario data loads and updates asynchronously (initial fetch, scenario
   // switches, debounced recompute) - re-drive the translate widget whenever
   // it changes, or freshly-rendered Norwegian text sits untranslated until
-  // something else happens to retrigger it (e.g. a refresh).
+  // something else happens to retrigger it (e.g. a refresh). `theme` is
+  // included too: switching between "graf"/"lys"/"terminal" swaps in a
+  // brand-new set of DOM nodes for every node card (different markup per
+  // theme, see GaugeNode.tsx) that the widget has never seen, so it needs
+  // the same re-dispatch newly-rendered data gets.
   useEffect(() => {
     if (result) applyLanguage(language);
-  }, [result, language]);
+  }, [result, language, theme]);
 
   // Read fresh inside the debounced recompute effect below without adding
   // lastAction to its dependency array (that would fire an extra recompute
@@ -162,7 +171,7 @@ export function ScenarioApp() {
 
   return (
     <ThemeProvider value={theme}>
-    <EdgeStyleProvider value={edgeStyle}>
+    <LanguageProvider value={language}>
     <div className="appShell">
       {/* Renders Google's Website Translator widget invisibly - the
           SegmentedControl below drives it, so its own dropdown UI is hidden
@@ -215,11 +224,6 @@ export function ScenarioApp() {
         <div className="topBarGroup">
           <span className="controlLabel">Stil</span>
           <SegmentedControl ariaLabel="Stil" options={THEME_OPTIONS} value={theme} onChange={setTheme} />
-        </div>
-
-        <div className="topBarGroup">
-          <span className="controlLabel">Forbindelse</span>
-          <SegmentedControl ariaLabel="Forbindelse" options={EDGE_STYLE_OPTIONS} value={edgeStyle} onChange={setEdgeStyle} />
         </div>
 
         <div className="topBarGroup notranslate">
@@ -277,6 +281,7 @@ export function ScenarioApp() {
             <ScenarioGraph
               nodes={result.nodes}
               edges={result.edges}
+              indirectEnabled={indirectEnabled}
               onNodeClick={(id) => {
                 setSelectedNodeId(id);
                 setSelectedEdgeId(null);
@@ -291,7 +296,7 @@ export function ScenarioApp() {
         </div>
       </div>
     </div>
-    </EdgeStyleProvider>
+    </LanguageProvider>
     </ThemeProvider>
   );
 }

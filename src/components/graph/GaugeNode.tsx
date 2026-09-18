@@ -1,10 +1,11 @@
 import { Handle, Position, type Node, type NodeProps } from "@xyflow/react";
-import type { ConsequenceLabel, NodeSubtype } from "@/lib/calc/mappings";
+import { CONSEQUENCE_LABEL_EN, type ConsequenceLabel, type NodeSubtype } from "@/lib/calc/mappings";
 import type { CatalogSubtypeLabel } from "@/lib/calc/catalog/types";
 import { GaugeIndicator } from "@/components/graph/GaugeIndicator";
 import { useNodeHoverOpacity } from "@/components/graph/graphHoverContext";
 import { useCurrentTheme } from "@/lib/styles/context";
-import { SEVERITY_COLORS, SUBTYPE_FILL_COLORS, THEME_NODE_LAYOUT, hexToRgba } from "@/lib/styles/tokens";
+import { useCurrentLanguage } from "@/lib/i18n/googleTranslate";
+import { NODE_FILL_IMPACT, NODE_FILL_SCENARIO, SEVERITY_COLORS, THEME_NODE_LAYOUT } from "@/lib/styles/tokens";
 
 export type GaugeNodeData = {
   label: string;
@@ -41,16 +42,15 @@ export function GaugeNode({ id, data }: NodeProps<GaugeNodeType>) {
       style={{
         position: "relative",
         // Fixed box, circle centered inside it - deliberately NOT sized by
-        // content (see the label below). FloatingEdge/floatingEdgeGeometry
-        // find each edge's attachment point from this node's *measured*
-        // center + layout.radius; if the box grew with the label (as a
-        // plain flex column would), a long/wrapping label would push the
-        // measured center down away from the circle, and edges would stop
-        // short of - or past - the visible ring instead of touching it.
-        // That drift was most visible with indirect impact on, since the
-        // full function catalog has several long labels that wrap to 3
-        // lines. Keeping the box fixed keeps "measured center" == "circle
-        // center" regardless of label length.
+        // content. FloatingEdge/floatingEdgeGeometry find each edge's
+        // attachment point from this node's *measured* center + layout.radius;
+        // if the box grew with the label (as a plain flex column would), a
+        // long/wrapping label would push the measured center away from the
+        // circle, and edges would stop short of - or past - the visible ring
+        // instead of touching it. The label itself now renders *inside* the
+        // circle (GaugeIndicator's foreignObject, or the hendelse dot below),
+        // sized generously enough (see THEME_NODE_LAYOUT.graf) to hold a
+        // wrapped label without covering the severity ring.
         width: layout.width,
         height: layout.height,
         display: "flex",
@@ -63,60 +63,35 @@ export function GaugeNode({ id, data }: NodeProps<GaugeNodeType>) {
       {data.isHendelse ? (
         <div
           style={{
-            width: 56,
-            height: 56,
+            width: 84,
+            height: 84,
             borderRadius: "50%",
-            background: SUBTYPE_FILL_COLORS[data.subtype],
-            color: "#fff",
+            background: NODE_FILL_SCENARIO,
+            color: "var(--foreground)",
             display: "flex",
             alignItems: "center",
             justifyContent: "center",
-            fontSize: 11,
+            fontSize: 12,
             textAlign: "center",
-            padding: 4,
-            boxShadow: `0 0 16px ${SUBTYPE_FILL_COLORS[data.subtype]}99`,
+            padding: 8,
+            boxShadow: "0 0 16px rgba(148, 163, 184, 0.45)",
           }}
         >
           {data.label}
         </div>
       ) : (
-        <div style={{ filter: `drop-shadow(0 0 10px ${SUBTYPE_FILL_COLORS[data.subtype]}80)` }}>
-          <GaugeIndicator
-            category={data.category ?? "ingen"}
-            size={64}
-            label={data.label}
-            fillColor={SUBTYPE_FILL_COLORS[data.subtype]}
-          />
-        </div>
+        <GaugeIndicator category={data.category ?? "ingen"} size={96} label={data.label} fillColor={NODE_FILL_IMPACT} />
       )}
-      {/* Positioned out of flow so it can wrap to any number of lines
-          without changing the box above (and therefore the edge-attachment
-          math) - see the comment on the wrapper. */}
-      <div
-        style={{
-          position: "absolute",
-          top: "100%",
-          left: "50%",
-          transform: "translateX(-50%)",
-          marginTop: 4,
-          width: layout.width,
-          fontSize: 12,
-          textAlign: "center",
-          lineHeight: 1.2,
-        }}
-      >
-        {data.label}
-      </div>
       <Handle type="source" position={Position.Bottom} style={HIDDEN_HANDLE_STYLE} />
     </div>
   );
 }
 
-/** "lys" theme: a white SaaS-dashboard card - colored subtype pill, bold
+/** "lys" theme: a white SaaS-dashboard card - neutral subtype pill, bold
  * label, and (for non-root nodes) a percent-filled severity bar underneath -
  * modeled directly on the reference's tag-pill + criticality-bar cards. */
 function CardNode({ data, opacity, width }: { data: GaugeNodeData; opacity: number; width: number }) {
-  const subtypeColor = SUBTYPE_FILL_COLORS[data.subtype];
+  const language = useCurrentLanguage();
 
   if (data.isHendelse) {
     return (
@@ -133,25 +108,27 @@ function CardNode({ data, opacity, width }: { data: GaugeNodeData; opacity: numb
   const filled = ["ingen", "svært små", "små", "middels", "store", "svært store"].indexOf(category);
   const percent = Math.round((filled / 5) * 100);
   const severityColor = SEVERITY_COLORS[category];
+  const categoryText = language === "en" ? CONSEQUENCE_LABEL_EN[category] : category;
 
   return (
-    <div className="cardNode" style={{ width, opacity, borderTopColor: subtypeColor }}>
+    <div className="cardNode" style={{ width, opacity }}>
       <Handle type="target" position={Position.Top} style={HIDDEN_HANDLE_STYLE} />
-      <span className="cardNodePill" style={{ background: hexToRgba(subtypeColor, 0.14), color: subtypeColor }}>
-        {data.subtypeLabel}
-      </span>
+      <span className="cardNodePill cardNodePillNeutral">{data.subtypeLabel}</span>
       <div className="cardNodeLabel">{data.label}</div>
       <div className="cardNodeSeverity">
         <div className="cardNodeSeverityTrack">
           <div className="cardNodeSeverityFill" style={{ width: `${percent}%`, background: severityColor }} />
         </div>
-        {/* notranslate: this text is recomputed and re-rendered on every
-            edit (see NodeDetailPanel's dl for the same fix) - Google
-            Translate's DOM rewriting breaks React's ability to update it in
-            place afterwards, so the card freezes at a stale value instead of
-            reflecting the new consequence level. */}
+        {/* notranslate: hand-translated via CONSEQUENCE_LABEL_EN above, not
+            Google Translate - this text re-renders on every recompute, and
+            Google's widget only does a fresh translation pass on a genuine
+            language *switch*, not on a same-language re-render of content it
+            already visited (confirmed empirically - not fixable with a
+            forced remount either). Left to Google, this either freezes at
+            its first-ever value or silently stops updating; see
+            CONSEQUENCE_LABEL_EN's comment in lib/calc/mappings.ts. */}
         <span className="cardNodeSeverityLabel notranslate" style={{ color: severityColor }}>
-          {category} · {percent}%
+          {categoryText} · {percent}%
         </span>
       </div>
       <Handle type="source" position={Position.Bottom} style={HIDDEN_HANDLE_STYLE} />
@@ -163,30 +140,27 @@ function CardNode({ data, opacity, width }: { data: GaugeNodeData; opacity: numb
  * a label/status readout on the right - modeled on the reference dashboard's
  * node-load cards. */
 function RingCardNode({ data, opacity, width }: { data: GaugeNodeData; opacity: number; width: number }) {
-  const subtypeColor = SUBTYPE_FILL_COLORS[data.subtype];
+  const language = useCurrentLanguage();
   const category = data.category ?? "ingen";
-  const critical = category === "store" || category === "svært store";
+  const categoryText = language === "en" ? CONSEQUENCE_LABEL_EN[category] : category;
+  const rootStatusText = language === "en" ? "ROOT // EVENT" : "ROT // HENDELSE";
 
   return (
-    <div
-      className={critical ? "cardNode cardNodeTerminal cardNodeTerminalCritical" : "cardNode cardNodeTerminal"}
-      style={{ width, opacity }}
-    >
+    <div className="cardNode cardNodeTerminal" style={{ width, opacity }}>
       <Handle type="target" position={Position.Top} style={HIDDEN_HANDLE_STYLE} />
       <div className="cardNodeTerminalRing">
         {data.isHendelse ? (
-          <div className="cardNodeTerminalRoot" style={{ boxShadow: `0 0 14px ${subtypeColor}99`, background: subtypeColor }} />
+          <div className="cardNodeTerminalRoot" />
         ) : (
           <GaugeIndicator category={category} size={44} label={data.label} />
         )}
       </div>
       <div className="cardNodeTerminalText">
         <div className="cardNodeTerminalLabel">{data.label}</div>
-        {/* notranslate: see the matching CardNode fix above - this also
-            updates on every edit and needs to survive Google Translate's DOM
-            rewriting. */}
+        {/* notranslate: see the matching CardNode fix above - hand-translated
+            via CONSEQUENCE_LABEL_EN instead of Google Translate. */}
         <div className="cardNodeTerminalStatus notranslate">
-          {data.isHendelse ? "ROT // HENDELSE" : `STATUS: ${category.toUpperCase()}`}
+          {data.isHendelse ? rootStatusText : `STATUS: ${categoryText.toUpperCase()}`}
         </div>
       </div>
       <Handle type="source" position={Position.Bottom} style={HIDDEN_HANDLE_STYLE} />

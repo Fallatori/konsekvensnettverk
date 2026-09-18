@@ -9,7 +9,7 @@ import { GaugeIndicator } from "@/components/graph/GaugeIndicator";
 import { InfoTooltip } from "@/components/InfoTooltip";
 import { RichText } from "@/components/RichText";
 import type { ComputedNode } from "@/lib/calc/recompute";
-import { SUBTYPE_FILL_COLORS } from "@/lib/styles/tokens";
+import { NODE_FILL_IMPACT } from "@/lib/styles/tokens";
 
 export function NodeDetailPanel({
   node,
@@ -73,7 +73,7 @@ export function NodeDetailPanel({
             category={nearestConsequenceLabel(node.totalConsequenceValue)}
             size={120}
             label={node.label}
-            fillColor={SUBTYPE_FILL_COLORS[node.subtype]}
+            fillColor={NODE_FILL_IMPACT}
           />
         </div>
       )}
