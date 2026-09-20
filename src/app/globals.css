@@ -42,13 +42,13 @@
   --control-muted: #8f9ab3;
   --panel-border: rgba(111, 233, 255, 0.12);
   --glass-bg: rgba(12, 24, 48, 0.72);
-  /* Graph edge "wire" color - severity lives in the edge's midpoint marker
-     (shape + color), not the line itself. Also read directly via var() in
-     FloatingEdge.tsx so it repaints on theme switch. Fully opaque - edge
-     translucency is applied uniformly via EDGE_BASE_OPACITY in
+  /* Graph edge "wire" color - the single connection style is a flat gray,
+     the same value in every [data-theme] block below (see FloatingEdge.tsx,
+     which reads this via var() rather than a per-theme accent). Fully
+     opaque - edge translucency is applied uniformly via EDGE_BASE_OPACITY in
      FloatingEdge.tsx instead of being baked into this color, so overlapping
-     edges compound predictably regardless of connection style. */
-  --edge-wire: #e7ecf7;
+     edges compound predictably. */
+  --edge-wire: #6b7280;
   --edit-impact-color: var(--oslo-lys-bla);
   --grid-dot: rgba(231, 236, 247, 0.06);
   --body-font: Arial, Helvetica, sans-serif;
@@ -79,7 +79,7 @@
   --control-muted: #6b7280;
   --panel-border: #e2e5eb;
   --glass-bg: #ffffff;
-  /* Opaque - see the comment on "graf"'s --edge-wire above. */
+  /* Same gray as every theme - see the comment on "graf"'s --edge-wire above. */
   --edge-wire: #6b7280;
   --edit-impact-color: #1d4ed8;
   --grid-dot: rgba(26, 26, 46, 0.07);
@@ -110,8 +110,8 @@
   --control-muted: #6f83a8;
   --panel-border: rgba(34, 232, 255, 0.22);
   --glass-bg: rgba(6, 10, 19, 0.78);
-  /* Opaque - see the comment on "graf"'s --edge-wire above. */
-  --edge-wire: #7ea3c4;
+  /* Same gray as every theme - see the comment on "graf"'s --edge-wire above. */
+  --edge-wire: #6b7280;
   --edit-impact-color: #7cf9ff;
   --grid-dot: rgba(34, 232, 255, 0.09);
   --body-font:
@@ -381,18 +381,6 @@ body {
   color: var(--control-muted);
 }
 
-/* "flow" connection style (see EdgeStyleContext.tsx / FloatingEdge.tsx) -
-   marching-ants dash animated along the path, source -> target. */
-@keyframes edgeFlowDash {
-  to {
-    stroke-dashoffset: -24;
-  }
-}
-
-.edgeFlow {
-  animation: edgeFlowDash 900ms linear infinite;
-}
-
 /* Zone "swim lane" backgrounds (see ZoneBackgroundNode.tsx) - divides the
    canvas into hendelse -> direkte påvirkning -> indirekte påvirkning. Same
    three-tier visual language in every theme: the origin lane gets an accent
@@ -458,10 +446,12 @@ body {
   border-right: 1px dashed color-mix(in srgb, var(--accent) 55%, transparent);
 }
 
-.severityLegend {
+/* Single bottom-right legend panel (see GraphLegend.tsx) - not bottom-left,
+   since React Flow's zoom Controls already occupy that corner. Severity
+   color rows sit on top (always shown); a divider plus the connection width
+   rows are appended below once indirect impact is on. */
+.graphLegend {
   position: absolute;
-  /* Bottom-right, not bottom-left - React Flow's zoom Controls already
-     occupy that corner. */
   right: 1rem;
   bottom: 1rem;
   z-index: 5;
@@ -477,7 +467,7 @@ body {
   pointer-events: none;
 }
 
-.severityLegendTitle {
+.graphLegendTitle {
   font-size: 0.7rem;
   font-weight: 700;
   letter-spacing: 0.04em;
@@ -486,12 +476,28 @@ body {
   margin-bottom: 0.15rem;
 }
 
-.severityLegendRow {
+.graphLegendTitle:not(:first-child) {
+  margin-top: 0.2rem;
+}
+
+.graphLegendRow {
   display: flex;
   align-items: center;
   gap: 0.5rem;
   font-size: 0.8rem;
   color: var(--foreground);
+}
+
+.graphLegendSwatch {
+  width: 14px;
+  height: 14px;
+  border-radius: 0.25rem;
+  flex-shrink: 0;
+}
+
+.graphLegendDivider {
+  border-top: 1px solid var(--panel-border);
+  margin: 0.15rem 0;
 }
 
 /* Side panels now sit on the left of the graph, styled as floating glass
@@ -844,7 +850,10 @@ body {
   padding: 0.65rem 0.8rem;
   background: var(--surface-container-high);
   border: 1px solid var(--panel-border);
-  border-top: 3px solid var(--accent);
+  /* Neutral, not the theme accent - the top stripe used to double as a
+     subtype color; now that subtype isn't color-coded, it's just a plain
+     gray accent stripe. */
+  border-top: 3px solid var(--control-muted);
   border-radius: 0.65rem;
   box-shadow: 0 6px 18px rgba(0, 0, 0, 0.1);
   cursor: pointer;
@@ -858,6 +867,14 @@ body {
   font-weight: 700;
   letter-spacing: 0.04em;
   border-radius: 999px;
+}
+
+/* Subtype/subclass pill is a plain neutral gray in every theme - only
+   severity (the gauge/bar below) and connection width carry color meaning
+   now, see lib/styles/tokens.ts's comment on NODE_FILL_IMPACT. */
+.cardNodePillNeutral {
+  background: var(--control-track);
+  color: var(--control-muted);
 }
 
 .cardNodeLabel {
@@ -921,11 +938,6 @@ body {
   box-shadow: 0 0 18px var(--accent-soft);
 }
 
-.cardNodeTerminalCritical {
-  border-color: rgba(239, 68, 68, 0.55);
-  box-shadow: 0 0 22px rgba(239, 68, 68, 0.35);
-}
-
 .cardNodeTerminalRing {
   flex-shrink: 0;
   display: flex;
@@ -933,10 +945,14 @@ body {
   justify-content: center;
 }
 
+/* Root/hendelse dot - a plain neutral (not subtype-hued) fill, same
+   green/red/blue-free treatment as the wire-frame edges. */
 .cardNodeTerminalRoot {
   width: 30px;
   height: 30px;
   border-radius: 50%;
+  background: var(--control-muted);
+  box-shadow: 0 0 14px rgba(148, 163, 184, 0.45);
 }
 
 .cardNodeTerminalText {
@@ -1010,7 +1026,7 @@ body {
 }
 
 [data-theme="terminal"] .panel h2,
-[data-theme="terminal"] .severityLegendTitle,
+[data-theme="terminal"] .graphLegendTitle,
 [data-theme="terminal"] .controlLabel {
   letter-spacing: 0.08em;
 }

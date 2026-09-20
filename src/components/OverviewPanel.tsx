@@ -43,7 +43,13 @@ export function OverviewPanel({
         onClick={() => setIsOpen((open) => !open)}
       >
         <h2>Oversikt</h2>
-        <span className="material-symbols-outlined" aria-hidden="true">
+        {/* notranslate: this is an icon-font ligature ("expand_less"), not
+            real text - see the matching fix on every other icon span (e.g.
+            ScenarioApp's logout icon). Without it, Google Translate wraps
+            the ligature string in its own markup, breaking the ligature and
+            leaving the raw (and sometimes mistranslated) text visible next
+            to the heading instead of the chevron glyph. */}
+        <span className="material-symbols-outlined notranslate" aria-hidden="true">
           {isOpen ? "expand_less" : "expand_more"}
         </span>
       </button>

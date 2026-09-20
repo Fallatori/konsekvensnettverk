@@ -8,7 +8,7 @@
  * language SegmentedControl in ScenarioApp drives it directly through the
  * hidden <select> it renders into #google_translate_element.
  */
-import { useEffect, useState } from "react";
+import { createContext, useContext, useEffect, useState } from "react";
 
 export type Language = "no" | "en";
 
@@ -33,10 +33,39 @@ declare global {
   interface Window {
     googleTranslateElementInit?: () => void;
     google?: { translate: { TranslateElement: new (options: object, elementId: string) => unknown } };
+    __gtSafePatchApplied?: boolean;
   }
 }
 
 const WIDGET_ELEMENT_ID = "google_translate_element";
+
+/** Google Translate rewrites the DOM (wrapping/splitting text nodes) outside
+ * React's control. Once that's happened, the next React re-render that
+ * touches those nodes (e.g. a debounced recompute after changing timeframe
+ * while EN is active) calls removeChild/insertBefore on a node Google
+ * Translate already moved, which throws NotFoundError and crashes the whole
+ * page. There's no way to stop Google Translate from restructuring rendered
+ * text, so instead make these DOM ops tolerate a stale reference: no-op
+ * instead of throwing when the node isn't actually where React expects it.
+ * Must run before React's first render, so it's applied at module load. */
+function patchDomForGoogleTranslate() {
+  if (typeof window === "undefined" || window.__gtSafePatchApplied) return;
+  window.__gtSafePatchApplied = true;
+
+  const originalRemoveChild = Node.prototype.removeChild;
+  Node.prototype.removeChild = function <T extends Node>(this: Node, child: T): T {
+    if (child.parentNode !== this) return child;
+    return originalRemoveChild.call(this, child) as T;
+  };
+
+  const originalInsertBefore = Node.prototype.insertBefore;
+  Node.prototype.insertBefore = function <T extends Node>(this: Node, newNode: T, referenceNode: Node | null): T {
+    if (referenceNode && referenceNode.parentNode !== this) return newNode;
+    return originalInsertBefore.call(this, newNode, referenceNode) as T;
+  };
+}
+
+patchDomForGoogleTranslate();
 
 function loadGoogleTranslateScript() {
   if (document.getElementById("google-translate-script")) return;
@@ -78,7 +107,7 @@ export function applyLanguage(lang: Language, attemptsLeft = 20) {
 }
 
 /** Persists the chosen language and drives the Google Translate widget to
- * match. Mirrors useTheme/useEdgeStyle's localStorage pattern in context.tsx. */
+ * match. Mirrors useTheme's localStorage pattern in context.tsx. */
 export function useLanguage(): [Language, (lang: Language) => void] {
   const [language, setLanguage] = useState<Language>(readStoredLanguage);
 
@@ -92,6 +121,18 @@ export function useLanguage(): [Language, (lang: Language) => void] {
   }, [language]);
 
   return [language, setLanguage];
+}
+
+const LanguageContext = createContext<Language>("no");
+
+export const LanguageProvider = LanguageContext.Provider;
+
+/** Read by components deep in the graph (GaugeNode) that hand-translate a
+ * small fixed vocabulary themselves instead of relying on Google Translate -
+ * see CONSEQUENCE_LABEL_EN in lib/calc/mappings.ts for why. Mirrors
+ * useCurrentTheme's context pattern in lib/styles/context.tsx. */
+export function useCurrentLanguage(): Language {
+  return useContext(LanguageContext);
 }
 
 export { WIDGET_ELEMENT_ID };
