@@ -30,6 +30,17 @@ type Overrides = {
 const EMPTY_OVERRIDES: Overrides = { nodeCategories: {} };
 const RECOMPUTE_DEBOUNCE_MS = 300;
 
+// Step 1 of the map view (docs/map-view-plan.md): the nav bar entry point,
+// pointing at DSB's public map while the in-app map view is built. Opened as
+// a separate window rather than a tab so the map keeps its own lifecycle
+// fully outside React Flow's force simulation. `noopener` means window.open
+// returns null here - nothing to hold on to, and nothing to check.
+const MAP_URL = "https://kart.dsb.no/";
+
+function openMapWindow() {
+  window.open(MAP_URL, "bubblesMap", "noopener,noreferrer,width=1400,height=900");
+}
+
 export function ScenarioApp() {
   const [scenarios, setScenarios] = useState<ScenarioSummary[]>([]);
   const [scenarioId, setScenarioId] = useState<string | null>(null);
@@ -233,6 +244,13 @@ export function ScenarioApp() {
         </div>
 
         <div className="topBarSpacer" />
+
+        <button type="button" className="mapButton" onClick={openMapWindow}>
+          <span className="material-symbols-outlined notranslate" aria-hidden="true">
+            map
+          </span>
+          Kartvisning
+        </button>
 
         <button type="button" className="logoutButton" onClick={() => signOut({ callbackUrl: "/logg-inn" })}>
           <span className="material-symbols-outlined notranslate" aria-hidden="true">

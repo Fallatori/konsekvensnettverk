@@ -316,7 +316,8 @@ body {
   box-shadow: 0 0 12px var(--accent-glow);
 }
 
-.logoutButton {
+.logoutButton,
+.mapButton {
   display: inline-flex;
   align-items: center;
   gap: 0.4rem;
@@ -333,12 +334,14 @@ body {
     border-color 150ms ease;
 }
 
-.logoutButton:hover {
+.logoutButton:hover,
+.mapButton:hover {
   background: var(--surface-bright);
   border-color: var(--accent);
 }
 
-.logoutButton .material-symbols-outlined {
+.logoutButton .material-symbols-outlined,
+.mapButton .material-symbols-outlined {
   font-size: 18px;
 }
 
